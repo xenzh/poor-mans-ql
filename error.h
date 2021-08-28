@@ -161,6 +161,11 @@ public:
     }
 };
 
+inline std::ostream &operator<<(std::ostream &os, const Error &error)
+{
+    return error.describe(os);
+}
+
 
 template<Kind K, typename... Args>
 tl::unexpected<Error> error(Args &&...args)
@@ -188,3 +193,30 @@ std::string format(Args &&...args)
 
 
 template<typename V> using Result = err::Result<V>;
+
+
+namespace tl {
+
+
+template<typename V>
+std::ostream &operator<<(std::ostream &os, const expected<V, err::Error> &result)
+{
+    if (result)
+    {
+        if constexpr (std::is_same_v<void, V>)
+        {
+            return os << "ok()";
+        }
+        else
+        {
+            return os << "ok(" << *result << ")";
+        }
+    }
+    else
+    {
+        return os << "err(" << result.error() << ")";
+    }
+}
+
+
+} // namespace tl

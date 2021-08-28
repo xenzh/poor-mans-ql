@@ -4,7 +4,7 @@
 namespace ops {
 
 
-using Op = traits::expand_t<std::variant, Var, Const>;
+using Op = traits::expand_t<std::variant, Var>;
 
 std::ostream &operator<<(std::ostream &os, const Op &op);
 

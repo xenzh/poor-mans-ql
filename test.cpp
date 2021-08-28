@@ -1,4 +1,5 @@
 #include "ops.h"
+#include "util.h"
 
 #include <utility>
 #include <vector>
@@ -158,6 +159,20 @@ void test_visitable()
 }
 
 
+void test_utils()
+{
+    util::collect_apply_iterable(
+        [] (auto ...selected)
+        {
+            std::cout << "util::collect_apply_iterable({3, 1}, 11, 22, 33, 44): ";
+            (std::cout << ... << selected) << std::endl;
+        },
+        std::vector<size_t> {0},
+        11
+    );
+}
+
+
 } // namespace fql
 
 
@@ -166,5 +181,6 @@ int main()
     std::cout << "Vec2Args\n";
     fql::vec2args();
     fql::test_visitable();
+    fql::test_utils();
     return 0;
 }

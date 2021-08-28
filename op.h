@@ -37,28 +37,20 @@ class Var
     friend std::ostream &operator<<(std::ostream &os, const Var &item);
 
     const std::string d_name;
+    const size_t d_index;
 
 public:
-    Var(std::string_view name);
+    Var(std::string_view name, size_t index);
 
     std::string_view name() const;
 
-    template<typename Cb>
-    void refers(Cb &&callback) const;
-};
-
-
-class Const
-{
-    friend std::ostream &operator<<(std::ostream &os, const Const &item);
-
-    const Id d_arg;
-
-public:
-    Const(Id arg);
+    size_t index() const;
 
     template<typename Cb>
     void refers(Cb &&callback) const;
+
+    template<typename Result, typename... Substitutions>
+    void operator()(Result &&result, Substitutions &&...substitutions) const;
 };
 
 
@@ -81,8 +73,8 @@ public:
     template<typename Cb>
     void refers(Cb &&callback) const;
 
-    template<typename Next, typename... Args>
-    void operator()(Next &&next, Args &&...args) const;
+    template<typename Next, typename... Results>
+    void operator()(Next &&next, Results &&...results) const;
 };
 
 
@@ -171,8 +163,9 @@ inline std::ostream &operator<<(std::ostream &os, const Var &item)
     return os << "var(" << item.name() << ")";
 }
 
-inline Var::Var(std::string_view name)
+inline Var::Var(std::string_view name, size_t index)
     : d_name(name)
+    , d_index(index)
 {
 }
 
@@ -181,26 +174,24 @@ inline std::string_view Var::name() const
     return d_name;
 }
 
+inline size_t Var::index() const
+{
+    return d_index;
+}
+
 template<typename Cb>
 void Var::refers(Cb &&) const
 {
+    // Variable is always a leaf in the expression tree, so it cannot refer to other ops.
 }
 
-
-inline std::ostream &operator<<(std::ostream &os, const Const &item)
+template<typename Result, typename... Substitutions>
+void Var::operator()(Result &&result, Substitutions &&...substitutions) const
 {
-    return os << "const(#" << item.d_arg << ")";
-}
-
-inline Const::Const(Id arg)
-    : d_arg(arg)
-{
-}
-
-template<typename Cb>
-void Const::refers(Cb &&callback) const
-{
-    callback(d_arg);
+    util::nth(
+        result,
+        d_index,
+        std::forward<Substitutions>(substitutions)...);
 }
 
 
@@ -230,8 +221,8 @@ void Unary<Fn>::refers(Cb &&callback) const
 }
 
 template<template<typename> typename Fn>
-template<typename Next, typename... Args>
-void Unary<Fn>::operator()(Next &&next, Args &&...args) const
+template<typename Next, typename... Results>
+void Unary<Fn>::operator()(Next &&next, Results &&...results) const
 {
     util::nth(
         [
@@ -239,7 +230,7 @@ void Unary<Fn>::operator()(Next &&next, Args &&...args) const
             &next,
             id = d_arg,
             &fn = d_functor,
-            args = std::forward_as_tuple(std::forward<Args>(args)...)
+            args = std::forward_as_tuple(std::forward<Results>(results)...)
         ]
         (auto &&arg)
         {
@@ -253,8 +244,7 @@ void Unary<Fn>::operator()(Next &&next, Args &&...args) const
             }
         },
         d_arg,
-        std::forward<Args>(args)...
-    );
+        std::forward<Results>(results)...);
 }
 
 
