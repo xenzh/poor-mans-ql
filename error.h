@@ -7,16 +7,14 @@
 #include <sstream>
 
 
+namespace pmql {
 namespace err {
 
 
 #define ErrorKinds \
-    ErrorKind(OPS_REF_TO_UNKNOWN) \
-    ErrorKind(OPS_EMPTY) \
-    ErrorKind(OPS_CYCLE) \
-    ErrorKind(OPS_DANGLING) \
-    ErrorKind(OPS_TOO_MANY) \
-    ErrorKind(OPS_NOT_FOUND)
+    ErrorKind(OP_BAD_ARGUMENT       ) \
+    ErrorKind(OP_INCOMPATIBLE_TYPES ) \
+    ErrorKind(BUILDER_REF_TO_UNKNOWN) \
 
 
 #define ErrorKind(E) E,
@@ -34,7 +32,38 @@ std::ostream &operator<<(std::ostream &os, const Details<K> &details)
 }
 
 
-template<> struct Details<Kind::OPS_REF_TO_UNKNOWN>
+template<> struct Details<Kind::OP_BAD_ARGUMENT>
+{
+    std::string op;
+    size_t arg;
+    std::string cause;
+
+    template<typename Op, typename Cause>
+    Details(Op &&op, size_t arg, Cause &&cause)
+        : op(format(std::forward<Op>(op)))
+        , arg(arg)
+        , cause(format(std::forward<Cause>(cause)))
+    {
+    }
+
+    void operator()(std::ostream &os) const
+    {
+        os << "Operation " << op << "failed to get argument #" << arg << ": " << cause;
+    }
+};
+
+template<> struct Details<Kind::OP_INCOMPATIBLE_TYPES>
+{
+    std::string op;
+    std::string argtypes;
+
+    void operator()(std::ostream &os) const
+    {
+        os << "Operation " << op << " cannot be called with arguments of following types: " << argtypes;
+    }
+};
+
+template<> struct Details<Kind::BUILDER_REF_TO_UNKNOWN>
 {
     std::string op;
     size_t ref;
@@ -42,59 +71,8 @@ template<> struct Details<Kind::OPS_REF_TO_UNKNOWN>
 
     void operator()(std::ostream &os) const
     {
-        os << "Operation " << op << " references #" << ref << " which is unknown (max id: " << max << ")";
-    }
-};
-
-template<> struct Details<Kind::OPS_EMPTY>
-{
-    void operator()(std::ostream &os) const
-    {
-        os << "Expression is empty";
-    }
-};
-
-template<> struct Details<Kind::OPS_CYCLE>
-{
-    std::string ops;
-    size_t detected;
-
-    void operator()(std::ostream &os) const
-    {
-        os << "Cycle detected at #" << detected << " in sequence: " << ops;
-    }
-};
-
-template<> struct Details<Kind::OPS_DANGLING>
-{
-    std::string ops;
-    size_t dangling;
-
-    void operator()(std::ostream &os) const
-    {
-        os << "Dangling operation is detected at #" << dangling << " in sequence " << ops;
-    }
-};
-
-template<> struct Details<Kind::OPS_TOO_MANY>
-{
-    std::string ops;
-    size_t limit;
-    size_t count;
-
-    void operator()(std::ostream &os) const
-    {
-        os << "Expression operation limit exceeded (" << count << "/" << limit << "): " << ops;
-    }
-};
-
-template<> struct Details<Kind::OPS_NOT_FOUND>
-{
-    size_t overflow;
-
-    void operator()(std::ostream &os) const
-    {
-        os << "Requested operation that is " << overflow << " positions past what is available";
+        os << "Operation " << op << " cannot be built, "
+            "it refers to an unknown argument #" << ref << " (max: #" << max << ")";
     }
 };
 
@@ -167,6 +145,9 @@ inline std::ostream &operator<<(std::ostream &os, const Error &error)
 }
 
 
+template<typename V> using Result = tl::expected<V, Error>;
+
+
 template<Kind K, typename... Args>
 tl::unexpected<Error> error(Args &&...args)
 {
@@ -174,7 +155,11 @@ tl::unexpected<Error> error(Args &&...args)
 }
 
 
-template<typename V> using Result = tl::expected<V, Error>;
+template<typename E>
+tl::unexpected<Error> error(E &&err)
+{
+    return tl::unexpected<Error> {std::forward<E>(err)};
+}
 
 
 template<typename... Args>
@@ -195,11 +180,14 @@ std::string format(Args &&...args)
 template<typename V> using Result = err::Result<V>;
 
 
+} // namespace pmql
+
+
 namespace tl {
 
 
 template<typename V>
-std::ostream &operator<<(std::ostream &os, const expected<V, err::Error> &result)
+std::ostream &operator<<(std::ostream &os, const expected<V, pmql::err::Error> &result)
 {
     if (result)
     {

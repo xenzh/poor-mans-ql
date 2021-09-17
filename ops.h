@@ -1,135 +1,118 @@
+#pragma once
+
 #include "op.h"
+#include "error.h"
+
+#include <functional>
+#include <string_view>
+#include <variant>
+#include <vector>
 
 
-namespace ops {
+namespace pmql::op {
 
 
-using Op = traits::expand_t<std::variant, Var>;
+#define PmqlStdOpList \
+    PmqlStdOp(plus         , + , 2) \
+    PmqlStdOp(minus        , - , 2) \
+    PmqlStdOp(multiplies   , * , 2) \
+    PmqlStdOp(divides      , / , 2) \
+    PmqlStdOp(modulus      , % , 2) \
+    PmqlStdOp(negate       , - , 1) \
+    PmqlStdOp(equal_to     , ==, 2) \
+    PmqlStdOp(not_equal_to , !=, 2) \
+    PmqlStdOp(greater      , > , 2) \
+    PmqlStdOp(less         , < , 2) \
+    PmqlStdOp(greater_equal, >=, 2) \
+    PmqlStdOp(less_equal   , <=, 2) \
+    PmqlStdOp(logical_and  , &&, 2) \
+    PmqlStdOp(logical_or   , ||, 2) \
+    PmqlStdOp(logical_not  , ! , 1) \
 
-std::ostream &operator<<(std::ostream &os, const Op &op);
+
+namespace detail {
 
 
-using Ops = std::vector<Op>;
+template<template<typename> typename Fn, size_t MaxArity> struct ByArity;
 
-std::ostream &operator<<(std::ostream &os, const Ops &ops);
+template<template<typename> typename Fn> struct ByArity<Fn, 1> { using type = Unary<Fn> ; };
+template<template<typename> typename Fn> struct ByArity<Fn, 2> { using type = Binary<Fn>; };
 
 
-template<typename F, typename... Os>
-class OpsIterator
+template<template<typename> typename Fn> struct AsOp { using type = typename Traits<Fn>::op; };
+
+
+template<template<typename...> typename To, template<template<typename> typename> typename As, typename... Extra>
+struct Expand
 {
-    const Ops &d_ops;
-    Ops::const_iterator d_base;
-    F d_transform;
+    template<template<typename...> typename T, template<typename> typename... Ts>
+    using Expander = T<typename As<Ts>::type...>;
 
-    bool matching() const;
+#define PmqlStdOp(Fn, Sign, Arity) , std::Fn
+    using Expanded = Expander<To PmqlStdOpList>;
+#undef PmqlStdOp
 
-public:
-    using difference_type = std::ptrdiff_t;
-    using value_type = decltype(std::declval<F>()(*std::declval<Ops::const_iterator>()));
-    using reference = value_type;
-    using pointer = value_type *;
+    template<typename T> struct Cat;
+    template<typename... Args> struct Cat<To<Args...>>
+    {
+        template<typename... Ts> using With = To<Args..., Ts...>;
+    };
 
-    using iterator_category = std::forward_iterator_tag;
-
-    template<typename Fn>
-    OpsIterator(const Ops &ops, bool begin, Fn &&transform);
-
-    OpsIterator(const OpsIterator &) = default;
-    OpsIterator &operator=(const OpsIterator &) = default;
-
-    bool operator==(const OpsIterator &other) const;
-    bool operator!=(const OpsIterator &other) const;
-
-    OpsIterator &operator++();
-    reference operator*() const;
-    pointer operator->() const;
+    using type = typename Cat<Expanded>::template With<Extra...>;
 };
 
 
+template<template<typename...> typename To, template<template<typename> typename> typename As, typename... Extra>
+using expand_t = typename Expand<To, As, Extra...>::type;
 
-inline std::ostream &operator<<(std::ostream &os, const Op &item)
+
+} // namespace detail
+
+
+#define PmqlStdOp(Fn, Sign, Arity) \
+template<> struct Traits<std::Fn> \
+{ \
+    static constexpr std::string_view name = #Fn; \
+    static constexpr std::string_view sign = #Sign; \
+    static constexpr size_t max_arity = Arity; \
+    using fn = std::Fn<>; \
+    using op = typename detail::ByArity<std::Fn, max_arity>::type; \
+};
+PmqlStdOpList
+#undef PmqlStdOp
+
+
+using Any = detail::expand_t<std::variant, detail::AsOp, Var>;
+using List = std::vector<Any>;
+
+
+#undef PmqlStdOpList
+
+
+} // namespace pmql::op
+
+
+namespace std {
+
+
+inline std::ostream &operator<<(std::ostream &os, const pmql::op::Any &op)
 {
     return std::visit(
-        [&os] (const auto &op) mutable -> std::ostream &
-        {
-            return os << op;
-        },
-        item);
+        [&os] (const auto &item) mutable -> std::ostream & { return os << item; },
+        op);
 }
 
 
-inline std::ostream &operator<<(std::ostream &os, const Ops &item)
+inline std::ostream &operator<<(std::ostream &os, const pmql::op::List &list)
 {
-    for (size_t id = 0; id < item.size(); ++id)
+    pmql::op::Id id = 0;
+    for (const auto &op : list)
     {
-        os << "{" << id << "} " << item[id] << (id == item.size() - 1 ? "" : ", ");
+        os << "#" << id++ << ": " << op << "\n";
     }
+
     return os;
 }
 
 
-template<typename F, typename... Os>
-bool OpsIterator<F, Os...>::matching() const
-{
-    return std::visit(
-        [] (const auto &op)
-        {
-            return (false || ... || std::is_same_v<std::decay_t<decltype(op)>, Os>);
-        },
-        *d_base);
-}
-
-template<typename F, typename... Os>
-template<typename Fn>
-OpsIterator<F, Os...>::OpsIterator(const Ops &ops, bool begin, Fn &&transform)
-    : d_ops(ops)
-    , d_base(begin? d_ops.begin() : d_ops.end())
-    , d_transform(std::forward<Fn>(transform))
-{
-    if (begin && !matching())
-    {
-        operator++();
-    }
-}
-
-template<typename F, typename... Os>
-bool OpsIterator<F, Os...>::operator==(const OpsIterator &other) const
-{
-    return d_base == other.d_base;
-}
-
-template<typename F, typename... Os>
-bool OpsIterator<F, Os...>::operator!=(const OpsIterator &other) const
-{
-    return !operator==(other);
-}
-
-template<typename F, typename... Os>
-OpsIterator<F, Os...> &OpsIterator<F, Os...>::operator++()
-{
-    if (d_base != d_ops.end())
-    {
-        ++d_base;
-    }
-
-    while (d_base != d_ops.end() && !matching())
-    {
-        ++d_base;
-    }
-}
-
-template<typename F, typename... Os>
-typename OpsIterator<F, Os...>::reference OpsIterator<F, Os...>::operator*() const
-{
-    return *d_base;
-}
-
-template<typename F, typename... Os>
-typename OpsIterator<F, Os...>::pointer OpsIterator<F, Os...>::operator->() const
-{
-    return &(*d_base);
-}
-
-
-
-} // namespace ops
+} // namespace std

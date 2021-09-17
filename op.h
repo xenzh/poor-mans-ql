@@ -1,32 +1,35 @@
 #pragma once
 
-#include "util.h"
 #include "error.h"
 
-#include <iterator>
 #include <type_traits>
-#include <functional>
-
-#include <variant>
-#include <vector>
-#include <string>
-
-//removeme
-#include <iostream>
+#include <ostream>
+#include <string_view>
 
 
-namespace ops {
-namespace traits {
+// auto context = expression.context<Store, Get>();
+//
+// for (auto &var : context)
+// {
+//     var = getGetter(var.name());
+// }
+//
+// auto result = expression(context);
+//
+// * context stores vector with calculation results.
+// * Get interface:
+//      * accept      : operator()(callback &&) const;
+// * Store interface:
+//      * construct   : explicit Store(T &&);
+//      * move-assign : Stire &Store=(T &&);
+//      * accept      : operator()(callback &&) const;
+//      * name        : template<typename T> static name() -> std::string_view
+//
+// * Op describes a calculation step
+// * Arg interface:
+//      * get         : operator()(Id) -> Result<Get>;
 
-
-template<typename UnaryFn, typename Arg>
-using unary_result_t = std::invoke_result_t<UnaryFn, const Arg &>;
-
-
-template<template <typename> typename F> struct Fn;
-
-
-} // namespace traits
+namespace pmql::op {
 
 
 using Id = size_t;
@@ -34,139 +37,117 @@ using Id = size_t;
 
 class Var
 {
-    friend std::ostream &operator<<(std::ostream &os, const Var &item);
+    friend std::ostream &operator<<(std::ostream &, const Var &);
 
-    const std::string d_name;
-    const size_t d_index;
+    const Id d_id;
+    const std::string_view d_name;
 
 public:
-    Var(std::string_view name, size_t index);
+    explicit Var(Id id, std::string_view name);
+
+    Id id() const;
 
     std::string_view name() const;
 
-    size_t index() const;
-
-    template<typename Cb>
-    void refers(Cb &&callback) const;
-
-    template<typename Result, typename... Substitutions>
-    void operator()(Result &&result, Substitutions &&...substitutions) const;
+    template<typename Arg, typename Store>
+    Result<Store> operator()(Arg &&arg) const;
 };
 
 
-template<template<typename> typename Fn>
+template<template <typename = void> typename Op>
 class Unary
 {
-    template<template<typename> typename F>
-    friend std::ostream &operator<<(std::ostream &os, const Unary<F> &item);
+    template<template <typename> typename O>
+    friend std::ostream &operator<<(std::ostream &, const Unary<O> &);
 
-    using type = typename traits::Fn<Fn>::type;
-
-    const type d_functor;
+    const Op<> d_op;
     const Id d_arg;
 
 public:
-    Unary(Id arg);
+    explicit Unary(Id arg);
 
-    std::string_view name() const;
-
-    template<typename Cb>
-    void refers(Cb &&callback) const;
-
-    template<typename Next, typename... Results>
-    void operator()(Next &&next, Results &&...results) const;
+    template<typename Arg, typename Store>
+    Result<Store> operator()(Arg &&arg) const;
 };
 
 
-template<template<typename> typename Fn>
+template<template <typename = void> typename Op>
 class Binary
 {
-    template<template<typename> typename F>
-    friend std::ostream &operator<<(std::ostream &os, const Binary<F> &item);
+    template<template <typename> typename O>
+    friend std::ostream &operator<<(std::ostream &, const Binary<O> &);
 
-    using type = typename traits::Fn<Fn>::type;
-
-    const type d_functor;
+    const Op<> d_op;
     const Id d_lhs;
     const Id d_rhs;
 
 public:
-    Binary(Id lhs, Id rhs);
+    explicit Binary(Id lhs, Id rhs);
 
-    std::string_view name() const;
-
-    template<typename Cb>
-    void refers(Cb &&callback) const;
+    template<typename Arg, typename Store>
+    Result<Store> operator()(Arg &&arg) const;
 };
 
 
-template<template<typename> typename Fn>
-using func_t = std::conditional_t<traits::Fn<Fn>::arity == 1, Unary<Fn>, Binary<Fn>>;
 
+template<template<typename = void> typename Op> struct Traits;
 
-#define OpList \
-    OpItem(plus      , 2) \
-    OpItem(minus     , 2) \
-    OpItem(multiplies, 2) \
-    OpItem(divides   , 2) \
-    OpItem(modulus   , 2) \
-    OpItem(negate    , 1)
-
-
-namespace traits {
-
-
-#define OpItem(Item, Arity) \
-template<> struct Fn<std::Item> \
-{ \
-    using type = std::Item<void>; \
-    static constexpr std::string_view name = #Item; \
-    static constexpr size_t arity = Arity; \
-};
-OpList;
-#undef OpItem
-
-
-template<template<typename...> typename To, typename... Extra>
-struct expand
+template<template<typename = void> typename Op>
+constexpr std::string_view name()
 {
-    template<template<typename...> typename T, template<typename> typename... Ts>
-    using macro_expander_t = T<func_t<Ts>...>;
-
-    template<typename T> struct cat;
-
-    template<typename... Args> struct cat<To<Args...>>
-    {
-        template<typename... With> using with = To<Args..., With...>;
-    };
-
-#define OpItem(Item, Arity) , std::Item
-    using expanded = macro_expander_t<To OpList>;
-#undef OpItem
-
-    using type = typename cat<expanded>::template with<Extra...>;
-};
-
-
-template<template<typename...> typename To, typename... Extra>
-using expand_t = typename expand<To, Extra...>::type;
-
-
-} // namespace traits
-
-
-#undef OpList
-
-
-inline std::ostream &operator<<(std::ostream &os, const Var &item)
-{
-    return os << "var(" << item.name() << ")";
+    return Traits<Op>::name;
 }
 
-inline Var::Var(std::string_view name, size_t index)
-    : d_name(name)
-    , d_index(index)
+
+namespace detail {
+
+
+template<typename... Args> struct With
 {
+    template<typename Op>
+    using result = decltype(std::declval<Op>()(std::declval<const Args &>()...));
+
+    template<template <typename = void> typename Op, typename Store, typename = void> struct Eval
+    {
+        using type = void;
+
+        static Result<type> eval(const Op<> &op, const Args &...args)
+        {
+            return err::error<err::Kind::OP_INCOMPATIBLE_TYPES>(err::format(op), err::format(args...));
+        }
+    };
+
+    template<template <typename = void> typename Op, typename Store> struct Eval<Op, Store, std::void_t<result<Op<>>>>
+    {
+        using type = result<Op<>>;
+
+        static Result<type> eval(const Op<> &op, const Args &...args)
+        {
+            return op(args...);
+        }
+    };
+};
+
+
+template<typename Store, template <typename = void> typename Op, typename... Args>
+Result<typename detail::With<Args...>::template result<>> eval(const Op<> &op, Args &&...args)
+{
+    return With<Args...>::template Eval<Op, Store>::eval(op, std::forward<Args>(args)...);
+}
+
+
+} // namespace detail
+
+
+inline Var::Var(Id id, std::string_view name)
+    : d_id(id)
+    , d_name(name)
+{
+}
+
+inline Id Var::id() const
+{
+    return d_id;
 }
 
 inline std::string_view Var::name() const
@@ -174,106 +155,94 @@ inline std::string_view Var::name() const
     return d_name;
 }
 
-inline size_t Var::index() const
+inline std::ostream &operator<<(std::ostream &os, const Var &var)
 {
-    return d_index;
-}
-
-template<typename Cb>
-void Var::refers(Cb &&) const
-{
-    // Variable is always a leaf in the expression tree, so it cannot refer to other ops.
-}
-
-template<typename Result, typename... Substitutions>
-void Var::operator()(Result &&result, Substitutions &&...substitutions) const
-{
-    util::nth(
-        result,
-        d_index,
-        std::forward<Substitutions>(substitutions)...);
+    return os << var.d_name << "(#" << var.d_id << ")";
 }
 
 
-template<template<typename> typename Fn>
-std::ostream &operator<<(std::ostream &os, const Unary<Fn> &item)
+template<typename Arg, typename Store>
+Result<Store> Var::operator()(Arg &&arg) const
 {
-    return os << item.name() << "(#" << item.d_arg << ")";
+    const auto &var = arg(d_id);
+    if (!var.has_value())
+    {
+        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_id, var.error());
+    }
+
+    return (*var)([] (const auto &typed) -> Result<Store>
+    {
+        return typed;
+    });
 }
 
-template<template<typename> typename Fn>
-Unary<Fn>::Unary(Id arg)
+
+template<template <typename = void> typename Op>
+Unary<Op>::Unary(Id arg)
     : d_arg(arg)
 {
 }
 
-template<template<typename> typename Fn>
-std::string_view Unary<Fn>::name() const
+template<template <typename = void> typename Op>
+template<typename Arg, typename Store>
+Result<Store> Unary<Op>::operator()(Arg &&arg) const
 {
-    return traits::Fn<Fn>::name;
+    const auto &item = arg(d_arg);
+    if (!item.has_value())
+    {
+        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_arg, item.error());
+    }
+
+    return (*item)([&op = d_op] (const auto &typed) -> Result<Store>
+    {
+        return detail::eval(op, typed);
+    });
 }
 
-template<template<typename> typename Fn>
-template<typename Cb>
-void Unary<Fn>::refers(Cb &&callback) const
+template<template <typename> typename O>
+std::ostream &operator<<(std::ostream &os, const Unary<O> &unary)
 {
-    callback(d_arg);
-}
-
-template<template<typename> typename Fn>
-template<typename Next, typename... Results>
-void Unary<Fn>::operator()(Next &&next, Results &&...results) const
-{
-    util::nth(
-        [
-            this,
-            &next,
-            id = d_arg,
-            &fn = d_functor,
-            args = std::forward_as_tuple(std::forward<Results>(results)...)
-        ]
-        (auto &&arg)
-        {
-            if (!arg)
-            {
-                std::apply(next, std::tuple_cat(std::move(args), std::make_tuple(arg)));
-            }
-            else
-            {
-                std::apply(next, std::tuple_cat(std::move(args), std::make_tuple(Result {fn(*arg)})));
-            }
-        },
-        d_arg,
-        std::forward<Results>(results)...);
+    return os << name<O>() << "(#" << unary.d_arg << ")";
 }
 
 
-template<template<typename> typename Fn>
-std::ostream &operator<<(std::ostream &os, const Binary<Fn> &item)
-{
-    return os << item.name() << "(#" << item.d_lhs << ", #" << item.d_rhs << ")";
-}
-
-template<template<typename> typename Fn>
-Binary<Fn>::Binary(Id lhs, Id rhs)
+template<template <typename = void> typename Op>
+Binary<Op>::Binary(Id lhs, Id rhs)
     : d_lhs(lhs)
     , d_rhs(rhs)
 {
 }
 
-template<template<typename> typename Fn>
-std::string_view Binary<Fn>::name() const
+template<template <typename = void> typename Op>
+template<typename Arg, typename Store>
+Result<Store> Binary<Op>::operator()(Arg &&arg) const
 {
-    return traits::Fn<Fn>::name;
+    const auto &lhs = arg(d_lhs);
+    if (!lhs.has_value())
+    {
+        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_lhs, lhs.error());
+    }
+
+    const auto &rhs = arg(d_rhs);
+    if (!rhs.has_value())
+    {
+        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_rhs, rhs.error());
+    }
+
+    return (*lhs)([&op = d_op, &rhs] (const auto &ltyped)
+    {
+        return (*rhs)([&op, &ltyped] (const auto &rtyped) -> Result<Store>
+        {
+            return op(ltyped, rtyped);
+        });
+    });
 }
 
-template<template<typename> typename Fn>
-template<typename Cb>
-void Binary<Fn>::refers(Cb &&callback) const
+template<template <typename> typename O>
+std::ostream &operator<<(std::ostream &os, const Binary<O> &binary)
 {
-    callback(d_lhs);
-    callback(d_rhs);
+    return os << name<O>() << "(#" << binary.d_lhs << ", #" << binary.d_rhs << ")";
 }
 
 
-} // namespace ops
+} // namespace pmql::op
