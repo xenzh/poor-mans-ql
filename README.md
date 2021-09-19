@@ -93,9 +93,10 @@ VarPlusConstParam_Pmql<VariantIntDouble>/10000       11.8 ms         11.8 ms    
 
 ## TODO
 
-- [ ] Prevent full specialization for all variant types x ops
+- [x] Prevent full specialization for all variant types x ops
 - [ ] Ternary (n-ary) ops.
 - [ ] Custom ops: if (3), avail (N).
 - [ ] Store/load from string.
+- [ ] Context caching / selective invalidation.
 - [ ] Better benchmark converage.
 - [ ] Actual unit tests.

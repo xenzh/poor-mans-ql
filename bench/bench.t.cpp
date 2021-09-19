@@ -21,12 +21,15 @@ using VariantDouble    = pmql::Variant<Name, double     >;
 using VariantIntDouble = pmql::Variant<Name, int, double>;
 
 
-
-//template<typename T>
-//void fail(benchmark::State &state, const Result<T> &result)
-//{
-//    state.SkipWithError(result.error().description().c_str());
-//}
+template<typename Expr, typename Ctx>
+void passcheck(benchmark::State &state, const Expr &expr, Ctx &context)
+{
+    auto result = expr(context);
+    if (!result)
+    {
+        state.SkipWithError(result.error().description().c_str());
+    }
+}
 
 
 void params(benchmark::internal::Benchmark *settings)
@@ -57,9 +60,9 @@ void SingleConst_Pmql(benchmark::State &state)
     builder.constant(42);
 
     auto expr = *std::move(builder)();
-
     auto context = expr.template context<Store>();
 
+    passcheck(state, expr, context);
     for (auto _ : state)
     {
         for (int i = 0; i < state.range(0); ++i)
@@ -102,6 +105,7 @@ void VarPlusConstFixed_Pmql(benchmark::State &state)
     auto context = expr.template context<Store>();
     context("a")->get() = 42;
 
+    passcheck(state, expr, context);
     for (auto _ : state)
     {
         for (int i = 0; i < state.range(0); ++i)
@@ -145,6 +149,9 @@ void VarPlusConstParam_Pmql(benchmark::State &state)
     auto context = expr.template context<Store>();
 
     auto &var = *context.find("a");
+
+    var = 1;
+    passcheck(state, expr, context);
 
     for (auto _ : state)
     {
@@ -200,6 +207,11 @@ void AvgOfThree_Pmql(benchmark::State &state)
     auto &b = context("b")->get();
     auto &c = context("c")->get();
 
+    a = 1.1;
+    b = 2.2;
+    c = 3.3;
+    passcheck(state, expr, context);
+
     for (auto _ : state)
     {
         for (int i = 0; i < state.range(0); ++i)
@@ -214,9 +226,9 @@ void AvgOfThree_Pmql(benchmark::State &state)
 }
 
 BENCHMARK(AvgOfThree_Native)->Apply(params);
-//BENCHMARK_TEMPLATE(AvgOfThree_Pmql, SingleDouble    )->Apply(params);
-//BENCHMARK_TEMPLATE(AvgOfThree_Pmql, VariantDouble   )->Apply(params);
-//BENCHMARK_TEMPLATE(AvgOfThree_Pmql, VariantIntDouble)->Apply(params);
+BENCHMARK_TEMPLATE(AvgOfThree_Pmql, SingleDouble    )->Apply(params);
+BENCHMARK_TEMPLATE(AvgOfThree_Pmql, VariantDouble   )->Apply(params);
+BENCHMARK_TEMPLATE(AvgOfThree_Pmql, VariantIntDouble)->Apply(params);
 
 
 } // namespace pmql

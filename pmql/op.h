@@ -106,23 +106,21 @@ namespace detail {
 
 template<typename... Args> struct With
 {
-    template<typename Op>
-    using result = decltype(std::declval<Op>()(std::declval<const Args &>()...));
+    template<template<typename> typename Op, typename Store>
+    using allowed = decltype(Store {std::declval<Op<void>>()(std::declval<const Args &>()...)});
 
-    template<template <typename = void> typename Op, typename Store, typename = void> struct Eval
+    template<template <typename = void> typename Op, typename Store, typename = void>
+    struct Eval
     {
-        using type = void;
-
         static Result<Store> eval(const Op<> &op, const Args &...args)
         {
             return err::error<err::Kind::OP_INCOMPATIBLE_TYPES>(err::format(op), err::format(args...));
         }
     };
 
-    template<template <typename = void> typename Op, typename Store> struct Eval<Op, Store, std::void_t<result<Op<>>>>
+    template<template <typename = void> typename Op, typename Store>
+    struct Eval<Op, Store, std::void_t<allowed<Op, Store>>>
     {
-        using type = result<Op<>>;
-
         static Result<Store> eval(const Op<> &op, const Args &...args)
         {
             return Store {op(args...)};

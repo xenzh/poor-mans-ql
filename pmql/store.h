@@ -36,13 +36,24 @@ class Variant
     template<template<typename> typename N, typename... Ts>
     friend std::ostream &operator<<(std::ostream &, const Variant<N, Ts...> &);
 
+    template<typename T, typename = void> struct allowed : std::false_type {};
+    template<typename T> struct allowed<
+        T,
+        std::void_t<decltype(std::variant<Vs...> {std::declval<T>()})>> : std::true_type {};
+
+    template<typename T>
+    static constexpr bool allowed_v = allowed<T>::value;
+
+    template<typename T>
+    static constexpr bool is_self_v = std::is_same_v<std::decay_t<T>, Variant<Name, Vs...>>;
+
     std::variant<Vs...> d_value;
 
 public:
     template<typename T>
     static std::string_view name();
 
-    template<typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, Variant<Name, Vs...>>>>
+    template<typename T, typename = std::enable_if_t<!is_self_v<T> && allowed_v<T>>>
     explicit Variant(T &&value);
 
     template<typename T, typename... Args>

@@ -65,7 +65,7 @@ template<> struct Details<Kind::OP_BAD_ARGUMENT>
 
     void operator()(std::ostream &os) const
     {
-        os << "Operation " << op << "failed to get argument #" << arg << ": " << cause;
+        os << "Operation " << op << " failed to get argument #" << arg << ": " << cause;
     }
 };
 
