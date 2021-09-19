@@ -9,9 +9,6 @@
 #include <vector>
 
 
-namespace pmql::op {
-
-
 #define PmqlStdOpList \
     PmqlStdOp(std, plus         , + , 2) \
     PmqlStdOp(std, minus        , - , 2) \
@@ -30,6 +27,7 @@ namespace pmql::op {
     PmqlStdOp(std, logical_not  , ! , 1) \
 
 
+namespace pmql::op {
 namespace detail {
 
 
@@ -93,10 +91,18 @@ using Any = detail::expand_t<std::variant, detail::AsOp, Const, Var>;
 using List = std::vector<Any>;
 
 
-#undef PmqlStdOpList
-
-
 } // namespace pmql::op
+
+
+#define PmqlStdOp(Ns, Fn, Sign, Arity) \
+namespace Ns { \
+inline std::ostream &operator<<(std::ostream &os, const Fn<void> &) \
+{ \
+    return os << #Fn; \
+} \
+}
+PmqlStdOpList
+#undef PmqlStdOp
 
 
 namespace std {
@@ -123,3 +129,6 @@ inline std::ostream &operator<<(std::ostream &os, const pmql::op::List &list)
 
 
 } // namespace std
+
+
+#undef PmqlStdOpList

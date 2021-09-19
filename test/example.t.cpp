@@ -1,23 +1,18 @@
+#include "../pmql/expression.h"
+#include "../pmql/store.h"
+
+#include <gtest/gtest.h>
+
 #include <iostream>
-
-#include "expression.h"
-#include "store.h"
-
-
-// TODO:
-// * More intuitive builder?..
-// * Benchmarks (visit vs virtual?..)
-// * cmake
-// * unit tests
 
 
 template<typename T> struct Name;
 template<> struct Name<int> { static constexpr std::string_view value = "int"; };
 
-using Value = pmql::Store<Name, int>;
+using Value = pmql::Variant<Name, int>;
 
 
-int main()
+TEST(Example, AplusBminus42)
 {
     using namespace pmql;
 
@@ -38,8 +33,7 @@ int main()
     auto expr = std::move(builder)();
     if (!expr.has_value())
     {
-        std::cout << "-- Builder error: " << expr.error();
-        return 1;
+        FAIL() << "-- Builder error: " << expr.error();
     }
 
     std::cout << "-- Expression: " << *expr << "\n\n";
@@ -58,6 +52,4 @@ int main()
 
     std::cout << "-- Result: " << result << "\n\n";
     expr->log(std::cout << "-- Log:\n", context) << "\n";
-
-    return 0;
 }

@@ -354,7 +354,7 @@ void Expression<Store>::eval(op::Id id, Context<Store, Substitute> &context) con
             {
                 res = op.template eval<Store>([this, &context] (auto ref) mutable
                 {
-                    eval(ref, context);
+                    this->eval(ref, context);
                     return context.d_results[ref];
                 });
             }
