@@ -1,10 +1,12 @@
 #pragma once
 
+#include "result.h"
+
 #include <tl/expected.hpp>
 
-#include <variant>
+#include <utility>
 #include <string>
-#include <sstream>
+#include <ostream>
 
 
 namespace pmql {
@@ -28,15 +30,6 @@ namespace err {
 #define ErrorKind(E) E,
 enum class Kind { ErrorKinds };
 #undef ErrorKind
-
-
-template<typename... Args>
-std::string format(Args &&...args)
-{
-    std::ostringstream ostr;
-    (ostr << ... << args);
-    return std::move(ostr).str();
-}
 
 
 template<Kind K> struct Details;
@@ -234,72 +227,14 @@ template<> struct Details<Kind::EXPR_BAD_SUBST>
 };
 
 
-template<Kind K> struct kind_t {};
-
-template<Kind K> inline constexpr kind_t<K> kind;
-
-
-class Error
-{
 #define ErrorKind(E) , Kind::E
-    template<template<typename...> typename To, Kind... kinds> using expand_t = To<Details<kinds>...>;
-    using Variant = expand_t<std::variant ErrorKinds>;
+using Error = ErrorTemplate<Kind, Details ErrorKinds>;
 #undef ErrorKind
 
-    Kind d_kind;
-    Variant d_details;
 
-public:
-    template<Kind K, typename... Args>
-    Error(kind_t<K>, Args &&...args)
-        : d_kind {K}
-        , d_details {Details<K> {std::forward<Args>(args)...}}
-    {
-    }
+template<Kind K> using kind_t = typename Error::template kind_t<K>;
 
-    Kind kind() const
-    {
-        return d_kind;
-    }
-
-    template<Kind K>
-    const Details<K> *details() const
-    {
-        return std::visit(
-            [] (const auto &detail)
-            {
-                using Actual = std::decay_t<decltype(detail)>;
-                if constexpr (std::is_same_v<Details<K>, Actual>)
-                {
-                    return &detail;
-                }
-                return nullptr;
-            },
-            d_details);
-    }
-
-    std::ostream &describe(std::ostream &os) const
-    {
-        return std::visit(
-            [&os] (const auto &detail) mutable -> std::ostream &
-            {
-                return os << detail;
-            },
-            d_details);
-    }
-
-    std::string description() const
-    {
-        std::ostringstream ostr;
-        describe(ostr);
-        return std::move(ostr).str();
-    }
-};
-
-inline std::ostream &operator<<(std::ostream &os, const Error &error)
-{
-    return error.describe(os);
-}
+template<Kind K> inline constexpr kind_t<K> kind;
 
 
 template<typename V> using Result = tl::expected<V, Error>;
@@ -310,7 +245,6 @@ tl::unexpected<Error> error(Args &&...args)
 {
     return tl::unexpected<Error> {Error {kind<K>, std::forward<Args>(args)...}};
 }
-
 
 template<typename E>
 tl::unexpected<Error> error(E &&err)

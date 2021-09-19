@@ -1,6 +1,6 @@
 # Poor man's query language
 
-This library allows to build and evaluate formula expressions based on std-like functional objects. Type system is data-driven: library borrows allowed types for client-provided object storage, varible and evaluation result types are defined by variable substitutions done by client.
+This library allows to build and evaluate formula expressions based on std-like functional objects. Type system is data-driven: library borrows allowed types from object storage, provided by the client, evaluation result types are inferred from variable substitutions.
 
 ## Build
 
@@ -17,7 +17,7 @@ ninja
 #include <pmql/store.h>
 
 
-// define value storage.
+// Define storage for calculated values.
 
 template<typename T> struct Name;
 template<> struct Name<int    > { static constexpr std::string_view value = "int"   ; };
@@ -48,7 +48,6 @@ pmql::Result<Value> test()
 
     auto expr = *std::move(result);
 
-
     // Do variable substitutions, evaluate the expression.
 
     auto context = expr.context<Value>();
@@ -63,7 +62,7 @@ pmql::Result<Value> test()
 
 ## Performance
 
-Current version is more of a proof of concept, and benchmarks does not look too inspiring:
+This version is more of a proof of concept, and benchmarks do not look too inspiring:
 
 ```
 Running ./build/bench/pmql_bench
