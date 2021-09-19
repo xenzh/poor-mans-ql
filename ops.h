@@ -13,24 +13,30 @@ namespace pmql::op {
 
 
 #define PmqlStdOpList \
-    PmqlStdOp(plus         , + , 2) \
-    PmqlStdOp(minus        , - , 2) \
-    PmqlStdOp(multiplies   , * , 2) \
-    PmqlStdOp(divides      , / , 2) \
-    PmqlStdOp(modulus      , % , 2) \
-    PmqlStdOp(negate       , - , 1) \
-    PmqlStdOp(equal_to     , ==, 2) \
-    PmqlStdOp(not_equal_to , !=, 2) \
-    PmqlStdOp(greater      , > , 2) \
-    PmqlStdOp(less         , < , 2) \
-    PmqlStdOp(greater_equal, >=, 2) \
-    PmqlStdOp(less_equal   , <=, 2) \
-    PmqlStdOp(logical_and  , &&, 2) \
-    PmqlStdOp(logical_or   , ||, 2) \
-    PmqlStdOp(logical_not  , ! , 1) \
+    PmqlStdOp(std, plus         , + , 2) \
+    PmqlStdOp(std, minus        , - , 2) \
+    PmqlStdOp(std, multiplies   , * , 2) \
+    PmqlStdOp(std, divides      , / , 2) \
+    PmqlStdOp(std, modulus      , % , 2) \
+    PmqlStdOp(std, negate       , - , 1) \
+    PmqlStdOp(std, equal_to     , ==, 2) \
+    PmqlStdOp(std, not_equal_to , !=, 2) \
+    PmqlStdOp(std, greater      , > , 2) \
+    PmqlStdOp(std, less         , < , 2) \
+    PmqlStdOp(std, greater_equal, >=, 2) \
+    PmqlStdOp(std, less_equal   , <=, 2) \
+    PmqlStdOp(std, logical_and  , &&, 2) \
+    PmqlStdOp(std, logical_or   , ||, 2) \
+    PmqlStdOp(std, logical_not  , ! , 1) \
 
 
 namespace detail {
+
+
+template<typename T, typename = void> struct Ostreamable : std::false_type {};
+template<typename T> struct Ostreamable<
+    T,
+    std::void_t<decltype(std::declval<std::ostream &>() << std::declval<const T &>())>> : std::true_type {};
 
 
 template<template<typename> typename Fn, size_t MaxArity> struct ByArity;
@@ -48,7 +54,7 @@ struct Expand
     template<template<typename...> typename T, template<typename> typename... Ts>
     using Expander = T<typename As<Ts>::type...>;
 
-#define PmqlStdOp(Fn, Sign, Arity) , std::Fn
+#define PmqlStdOp(Ns, Fn, Sign, Arity) , Ns::Fn
     using Expanded = Expander<To PmqlStdOpList>;
 #undef PmqlStdOp
 
@@ -69,20 +75,21 @@ using expand_t = typename Expand<To, As, Extra...>::type;
 } // namespace detail
 
 
-#define PmqlStdOp(Fn, Sign, Arity) \
-template<> struct Traits<std::Fn> \
+#define PmqlStdOp(Ns, Fn, Sign, Arity) \
+template<> struct Traits<Ns::Fn> \
 { \
+    static uintptr_t unique() { return reinterpret_cast<uintptr_t>(&unique); }; \
     static constexpr std::string_view name = #Fn; \
     static constexpr std::string_view sign = #Sign; \
     static constexpr size_t max_arity = Arity; \
-    using fn = std::Fn<>; \
-    using op = typename detail::ByArity<std::Fn, max_arity>::type; \
+    using fn = Ns::Fn<>; \
+    using op = typename detail::ByArity<Ns::Fn, max_arity>::type; \
 };
 PmqlStdOpList
 #undef PmqlStdOp
 
 
-using Any = detail::expand_t<std::variant, detail::AsOp, Var>;
+using Any = detail::expand_t<std::variant, detail::AsOp, Const, Var>;
 using List = std::vector<Any>;
 
 
@@ -108,7 +115,7 @@ inline std::ostream &operator<<(std::ostream &os, const pmql::op::List &list)
     pmql::op::Id id = 0;
     for (const auto &op : list)
     {
-        os << "#" << id++ << ": " << op << "\n";
+        os << "\t#" << id++ << ": " << op << "\n";
     }
 
     return os;

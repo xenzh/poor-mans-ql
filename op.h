@@ -7,50 +7,41 @@
 #include <string_view>
 
 
-// auto context = expression.context<Store, Get>();
-//
-// for (auto &var : context)
-// {
-//     var = getGetter(var.name());
-// }
-//
-// auto result = expression(context);
-//
-// * context stores vector with calculation results.
-// * Get interface:
-//      * accept      : operator()(callback &&) const;
-// * Store interface:
-//      * construct   : explicit Store(T &&);
-//      * move-assign : Stire &Store=(T &&);
-//      * accept      : operator()(callback &&) const;
-//      * name        : template<typename T> static name() -> std::string_view
-//
-// * Op describes a calculation step
-// * Arg interface:
-//      * get         : operator()(Id) -> Result<Get>;
-
 namespace pmql::op {
 
 
 using Id = size_t;
 
 
-class Var
+class Const
+{
+    friend std::ostream &operator<<(std::ostream &, const Const &);
+
+    const Id d_sub;
+
+public:
+    explicit Const(Id id);
+
+    Id id() const;
+
+    template<typename To>
+    void refers(To &&to) const;
+
+    template<typename Store, typename Arg>
+    Result<Store> eval(Arg &&arg) const;
+};
+
+
+class Var : public Const
 {
     friend std::ostream &operator<<(std::ostream &, const Var &);
 
-    const Id d_id;
     const std::string_view d_name;
 
 public:
     explicit Var(Id id, std::string_view name);
 
-    Id id() const;
-
     std::string_view name() const;
-
-    template<typename Arg, typename Store>
-    Result<Store> operator()(Arg &&arg) const;
 };
 
 
@@ -66,8 +57,11 @@ class Unary
 public:
     explicit Unary(Id arg);
 
-    template<typename Arg, typename Store>
-    Result<Store> operator()(Arg &&arg) const;
+    template<typename To>
+    void refers(To &&to) const;
+
+    template<typename Store, typename Arg>
+    Result<Store> eval(Arg &&arg) const;
 };
 
 
@@ -84,19 +78,27 @@ class Binary
 public:
     explicit Binary(Id lhs, Id rhs);
 
-    template<typename Arg, typename Store>
-    Result<Store> operator()(Arg &&arg) const;
+    template<typename To>
+    void refers(To &&to) const;
+
+    template<typename Store, typename Arg>
+    Result<Store> eval(Arg &&arg) const;
 };
 
 
+template<template<typename = void> typename Fn> struct Traits;
 
-template<template<typename = void> typename Op> struct Traits;
-
-template<template<typename = void> typename Op>
+template<template<typename = void> typename Fn>
 constexpr std::string_view name()
 {
-    return Traits<Op>::name;
+    return Traits<Fn>::name;
 }
+
+
+template<typename Op> struct OpTraits;
+
+template<template<typename> typename Fn> struct OpTraits<Unary <Fn>> { using type = Traits<Fn>; };
+template<template<typename> typename Fn> struct OpTraits<Binary<Fn>> { using type = Traits<Fn>; };
 
 
 namespace detail {
@@ -111,7 +113,7 @@ template<typename... Args> struct With
     {
         using type = void;
 
-        static Result<type> eval(const Op<> &op, const Args &...args)
+        static Result<Store> eval(const Op<> &op, const Args &...args)
         {
             return err::error<err::Kind::OP_INCOMPATIBLE_TYPES>(err::format(op), err::format(args...));
         }
@@ -121,16 +123,16 @@ template<typename... Args> struct With
     {
         using type = result<Op<>>;
 
-        static Result<type> eval(const Op<> &op, const Args &...args)
+        static Result<Store> eval(const Op<> &op, const Args &...args)
         {
-            return op(args...);
+            return Store {op(args...)};
         }
     };
 };
 
 
 template<typename Store, template <typename = void> typename Op, typename... Args>
-Result<typename detail::With<Args...>::template result<>> eval(const Op<> &op, Args &&...args)
+Result<Store> eval(const Op<> &op, Args &&...args)
 {
     return With<Args...>::template Eval<Op, Store>::eval(op, std::forward<Args>(args)...);
 }
@@ -139,15 +141,47 @@ Result<typename detail::With<Args...>::template result<>> eval(const Op<> &op, A
 } // namespace detail
 
 
-inline Var::Var(Id id, std::string_view name)
-    : d_id(id)
-    , d_name(name)
+inline Const::Const(Id id)
+    : d_sub(id)
 {
 }
 
-inline Id Var::id() const
+inline Id Const::id() const
 {
-    return d_id;
+    return d_sub;
+}
+
+template<typename To>
+void Const::refers(To &&to) const
+{
+    to(d_sub);
+}
+
+template<typename Store, typename Arg>
+Result<Store> Const::eval(Arg &&arg) const
+{
+    const auto &var = arg(d_sub);
+    if (!var.has_value())
+    {
+        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_sub, var.error());
+    }
+
+    return (*var)([] (const auto &typed) -> Result<Store>
+    {
+        return Store {typed};
+    });
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Const &var)
+{
+    return os << "const (_" << var.d_sub << ")";
+}
+
+
+inline Var::Var(Id id, std::string_view name)
+    : Const(id)
+    , d_name(name)
+{
 }
 
 inline std::string_view Var::name() const
@@ -157,35 +191,27 @@ inline std::string_view Var::name() const
 
 inline std::ostream &operator<<(std::ostream &os, const Var &var)
 {
-    return os << var.d_name << "(#" << var.d_id << ")";
-}
-
-
-template<typename Arg, typename Store>
-Result<Store> Var::operator()(Arg &&arg) const
-{
-    const auto &var = arg(d_id);
-    if (!var.has_value())
-    {
-        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_id, var.error());
-    }
-
-    return (*var)([] (const auto &typed) -> Result<Store>
-    {
-        return typed;
-    });
+    return os << var.d_name << " ($" << var.id() << ")";
 }
 
 
 template<template <typename = void> typename Op>
 Unary<Op>::Unary(Id arg)
-    : d_arg(arg)
+    : d_op {}
+    , d_arg {arg}
 {
 }
 
 template<template <typename = void> typename Op>
-template<typename Arg, typename Store>
-Result<Store> Unary<Op>::operator()(Arg &&arg) const
+template<typename To>
+void Unary<Op>::refers(To &&to) const
+{
+    to(d_arg);
+}
+
+template<template <typename = void> typename Op>
+template<typename Store, typename Arg>
+Result<Store> Unary<Op>::eval(Arg &&arg) const
 {
     const auto &item = arg(d_arg);
     if (!item.has_value())
@@ -195,7 +221,7 @@ Result<Store> Unary<Op>::operator()(Arg &&arg) const
 
     return (*item)([&op = d_op] (const auto &typed) -> Result<Store>
     {
-        return detail::eval(op, typed);
+        return detail::eval<Store>(op, typed);
     });
 }
 
@@ -208,14 +234,23 @@ std::ostream &operator<<(std::ostream &os, const Unary<O> &unary)
 
 template<template <typename = void> typename Op>
 Binary<Op>::Binary(Id lhs, Id rhs)
-    : d_lhs(lhs)
-    , d_rhs(rhs)
+    : d_op {}
+    , d_lhs {lhs}
+    , d_rhs {rhs}
 {
 }
 
 template<template <typename = void> typename Op>
-template<typename Arg, typename Store>
-Result<Store> Binary<Op>::operator()(Arg &&arg) const
+template<typename To>
+void Binary<Op>::refers(To &&to) const
+{
+    to(d_lhs);
+    to(d_rhs);
+}
+
+template<template <typename = void> typename Op>
+template<typename Store, typename Arg>
+Result<Store> Binary<Op>::eval(Arg &&arg) const
 {
     const auto &lhs = arg(d_lhs);
     if (!lhs.has_value())
@@ -233,7 +268,7 @@ Result<Store> Binary<Op>::operator()(Arg &&arg) const
     {
         return (*rhs)([&op, &ltyped] (const auto &rtyped) -> Result<Store>
         {
-            return op(ltyped, rtyped);
+            return detail::eval<Store>(op, ltyped, rtyped);
         });
     });
 }
@@ -245,4 +280,55 @@ std::ostream &operator<<(std::ostream &os, const Binary<O> &binary)
 }
 
 
+template <typename... Ts>
+size_t hash(size_t seed, const Ts &...values)
+{
+    return seed ^= ((std::hash<Ts>{}(values) + 0x9e3779b9 + (seed << 6) + (seed >> 2)) ^ ...);
+}
+
+
 } // namespace pmql::op
+
+
+namespace std {
+
+
+template<> struct hash<pmql::op::Const>
+{
+    size_t operator()(const pmql::op::Const &var) const noexcept
+    {
+        return var.id();
+    }
+};
+
+template<> struct hash<pmql::op::Var>
+{
+    size_t operator()(const pmql::op::Var &var) const noexcept
+    {
+        return pmql::op::hash(0, var.id(), var.name());
+    }
+};
+
+
+template<template <typename = void> typename Op> struct hash<pmql::op::Unary<Op>>
+{
+    size_t operator()(const pmql::op::Unary<Op> &unary) const noexcept
+    {
+        size_t seed = pmql::op::hash(0, pmql::op::Traits<Op>::unique());
+        unary.refers([&seed] (auto ref) mutable { seed = pmql::op::hash(seed, ref); });
+        return seed;
+    }
+};
+
+template<template <typename = void> typename Op> struct hash<pmql::op::Binary<Op>>
+{
+    size_t operator()(const pmql::op::Binary<Op> &binary) const noexcept
+    {
+        size_t seed = pmql::op::hash(0, pmql::op::Traits<Op>::unique());
+        binary.refers([&seed] (auto ref) mutable { seed = pmql::op::hash(seed, ref); });
+        return seed;
+    }
+};
+
+
+} // namespace std
