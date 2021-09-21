@@ -18,102 +18,253 @@ template<typename Store, typename... Funs>
 class Expression;
 
 
+/// Provides means of building and validating an Expression instance.
+/// Store contract:
+/// @code{.cpp}
+/// struct SampleStore
+/// {
+///     template<typename T>
+///     static std::string_view name()
+///     {
+///          // returns the name of T type (if supported).
+///     }
+///
+///     SampleStore()
+///     {
+///         // stores a null value.
+///     }
+///
+///     template<typename T>
+///     explicit SampleStore(T &&value)
+///     {
+///         // stores non-null value of T type (if supported).
+///     }
+///
+///     template<typename Visitor>
+///     auto operator()(Visitor &&visitor)const -> decltype(auto)
+///     {
+///         // calls visitor with stored value, returns its result.
+///     }
+/// };
+/// @endcode
+/// @tparam Store type that can store calculation results.
+/// @tparam Funs pack of extension function types.
 template<typename Store, typename... Funs>
 class Builder
 {
+    /// Reference to extension function pool.
     const ext::Pool<Funs...> &d_extensions;
 
+    /// List of operations.
     op::List d_ops;
+
+    /// Hash -> identifier mapping for added operation objects.
     std::unordered_map<size_t, op::Id> d_added;
 
-    size_t d_nextvar   = 0;
+    /// Variable counter for producing unique identifiers.
+    size_t d_nextvar = 0;
+
+    /// List of stored constant values.
     std::vector<Store> d_consts;
 
+    /// Deferred error object used to fail expression construction because of errors,
+    /// detected in some Builder constructors (to avoid constructor exceptions).
     Result<void> d_deferred;
 
 private:
+    /// Streaming support.
     template<typename S, typename... Fs>
     friend std::ostream &operator<<(std::ostream &, const Builder<S, Fs...> &);
 
+    /// Append an operation to operation list or reuse an existing one, if it already exists.
+    /// @tparam Op operation type.
+    /// @param op operation to add.
+    /// @return operation identifier or an error.
     template<typename Op>
     Result<op::Id> append(Op &&op);
 
+    /// Traverse operation tree, mark visited operations and look for errors.
+    /// @param id operation to visit.
+    /// @param visited map of visited operations to mark.
+    /// @return a success or a failure, if one of the visited operations has an issue.
     Result<void> visit(op::Id id, std::vector<bool> &visited) const;
 
 public:
+    /// Construct expression builder instance.
+    /// @param extensions optional extension function pool.
     explicit Builder(const ext::Pool<Funs...> &extensions = ext::none);
 
+    /// Construct and validate expression builder instance from expression ingredients.
+    /// @param consts list of constant values.
+    /// @param ops list of operations.
+    /// @param extensions optional extension function pool.
     Builder(std::vector<Store> &&consts, op::List &&ops, const ext::Pool<Funs...> &extensions = ext::none);
 
+    /// Returns a success or an error, if builder contents can't be used to construct a valid expression.
+    /// @return builder contents status.
+    Result<void> status() const;
+
+    /// Add a constant value.
+    /// @tparam T constant value type.
+    /// @param value constant value.
+    /// @return operation id or an error.
     template<typename T>
     Result<op::Id> constant(T &&value);
 
+    /// Add a variable.
+    /// @param name variable name, must be unique.
+    /// @return operation id or an error.
     Result<op::Id> var(std::string_view name);
 
+    /// Add an unary or binary operation.
+    /// @see op::Any
+    /// @tparam Fn supported std-like functional object.
+    /// @tparam Ids one or two op::Id types.
+    /// @param ids one or two operation identifiers, pointing to operation arguments.
+    /// @return operation id or an error.
     template<template<typename> typename Fn, typename... Ids>
     Result<op::Id> op(Ids ...ids);
 
+    /// Add an extension function.
+    /// @see ext::Pool
+    /// @tparam Ids zero or more op::Id types.
+    /// @param name extension function name.
+    /// @param ids function argument identifiers.
+    /// @return operation id or an error.
     template<typename... Ids>
     Result<op::Id> fun(std::string_view name, Ids ...ids);
 
+    /// Add an `if-else` condition.
+    /// @param cond operation that evaluates to bool, a condition.
+    /// @param iftrue operation that will be the result if the condition evaluates to true.
+    /// @param iffalse operation that will be the result if the condition evaluates to false.
+    /// @return operation id or an error.
     Result<op::Id> branch(op::Id cond, op::Id iftrue, op::Id iffalse);
 
+    /// Validate and build an Expression instance (consumes the builder).
+    /// @return Expression instance or an error.
     Result<Expression<Store, Funs...>> operator()() &&;
 };
 
 
+/// Expression that consists of mutiple steps and can be evaulated by substituting variable values.
+///
+/// Expression can include:
+/// * Typed constants.
+/// * Untyped variables.
+/// * Arithmetic, logical or bitwise operations.
+/// * Conditional branches.
+/// * Extension functions.
+///
+/// Result type is defined by types of constants and variables. Operations, conditions and functions may enforce
+/// typing rules on their arguments. If at some point types become incompatible, the error is returned.
+///
+/// Evaluation state (variable substitutions, evaluation results) are stored in Context instance, so a single
+/// expression can be evaluated using different contexts and produce different results.
+///
+/// @tparam Store type that can store calculation results.
+/// @tparam Funs pack of extension function types.
 template<typename Store, typename... Funs>
 class Expression
 {
+    /// Reference to a collection of extension functions.
     const ext::Pool<Funs...> &d_extensions;
+
+    /// List of operations.
     const op::List d_ops;
+
+    /// List of constants.
     const std::vector<Store> d_const;
 
 private:
+    /// Allow Builder to construct Expression instances.
     template<typename S, typename... Fs> friend class Builder;
 
+    /// Streaming support.
     template<typename S, typename... Fs>
     friend std::ostream &operator<<(std::ostream &, const Expression<S, Fs...> &);
 
+    /// Construct expression instance.
+    /// @param exts collection of extension functions.
+    /// @param ops valid ordered list of operations.
+    /// @param constants list of constants.
     Expression(const ext::Pool<Funs...> &exts, op::List &&ops, std::vector<Store> &&constants);
 
+    /// Writes human-readable expression contents into an output stream.
+    /// @param os output stream.
+    /// @param current root operation identifier.
+    /// @return modified output stream.
     std::ostream &format(std::ostream &os, op::Id current) const;
 
+    /// Evaluates an operation and writes results to the context.
+    /// @tparam Substitute type that can set and store variable value (see Substitute contract).
+    /// @param id operation identifier to evaluate.
+    /// @param context evaluation context reference.
     template<typename Substitute>
     void eval(op::Id id, Context<Store, Substitute> &context) const;
 
 public:
+    /// Return ordered list of Expression's operations.
+    /// @return list of operations.
     const op::List &operations() const;
 
+    /// Return list of constants.
+    /// @return list of constants.
     const std::vector<Store> &constants() const;
 
+    /// Create evaluation context instance bound to this expression.
+    /// @tparam Substitute type that can set and store variable value (see Substitute contract).
+    /// @return evaluation context instance.
     template<typename Substitute>
     Context<Store, Substitute> context() const;
 
+    /// Evaluate the expression using given context.
+    /// @tparam Substitute type that can set and store variable value (see Substitute contract).
+    /// @param context evaluation context.
+    /// @param expression result or an error.
     template<typename Substitute>
     Result<Store> operator()(Context<Store, Substitute> &context) const;
 
+    /// Write step-by-step expression evaluation log to an output stream.
+    /// @tparam Substitute type that can set and store variable value (see Substitute contract).
+    /// @param os output stream.
+    /// @param context evaluation context.
+    /// @return modified output stream.
     template<typename Substitute>
     std::ostream &log(std::ostream &os, const Context<Store, Substitute> &context) const;
 };
 
 
+/// Construct empty expression builder instance.
+/// @tparam Store type that can store calculation results.
+/// @tparam Funs pack of extension function types.
+/// @param extensions collection of extension functions.
+/// @return expression builder.
 template<typename Store, typename... Funs>
 Builder<Store, Funs...> builder(const ext::Pool<Funs...> &extensions = ext::none)
 {
     return Builder<Store, Funs...> {extensions};
 }
 
+/// Construct expression builder instance from expression ingredients.
+/// @tparam Store type that can store calculation results.
+/// @tparam Funs pack of extension function types.
+/// @param consts list of constants.
+/// @param ordered list of operations.
+/// @param extensions collection of extension functions.
+/// @return builder instance or an error, if provided expression ingredients are invalid.
 template<typename Store, typename... Funs>
-Builder<Store, Funs...> builder(
+Result<Builder<Store, Funs...>> builder(
     std::vector<Store> &&consts,
     op::List &&ops,
     const ext::Pool<Funs...> &extensions = ext::none)
 {
-    return Builder<Store, Funs...> {std::move(consts), std::move(ops), extensions};
+    auto builder = Builder<Store, Funs...> {std::move(consts), std::move(ops), extensions};
+    return builder.status().and_then([b = std::move(builder)] () mutable { return std::move(b); });
 }
 
 
+/// Serializes expression into a string.
 template<typename Store>
 std::string store(const Expression<Store> &expression)
 {
@@ -121,6 +272,7 @@ std::string store(const Expression<Store> &expression)
 }
 
 
+/// Loads expression from a string.
 template<typename Store, typename... Funs>
 Result<Expression<Store>> load(std::string_view stored, const ext::Pool<Funs...> &extensions = ext::none)
 {
@@ -136,6 +288,7 @@ Result<Expression<Store>> load(std::string_view stored, const ext::Pool<Funs...>
 namespace detail {
 
 
+/// Helper function object that checks if an operation arguments form a cycle.
 class CheckRef
 {
     const op::List &d_ops;
@@ -150,6 +303,7 @@ public:
     {
     }
 
+    /// Check an operation, store the error, if any.
     void operator()(op::Id id)
     {
         if (d_status.has_value() && id >= d_ops.size())
@@ -162,6 +316,7 @@ public:
         }
     }
 
+    /// Get stored error, if any.
     const Result<void> &operator()() const
     {
         return d_status;
@@ -307,6 +462,12 @@ Builder<Store, Funs...>::Builder(
 
         ++current;
     }
+}
+
+template<typename Store, typename... Funs>
+Result<void> Builder<Store, Funs...>::status() const
+{
+    return d_deferred;
 }
 
 template<typename Store, typename... Funs>

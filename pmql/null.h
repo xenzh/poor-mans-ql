@@ -7,12 +7,18 @@ namespace pmql {
 
 
 
+/// Type of null  literal used inside pmql to indicate an absense of value.
+/// All standard operations with null  literals are well-defined:
+/// * Arithmetic and bitwise operations: if any argument is null, then the result is null.
+/// * Comparison: null is equal only to itself and always less than any non-null value.
 struct null
 {
+    /// Nulls are implicitly convertible to bool(false) to be usable as conditions.
     operator bool() const { return false; }
 };
 
 
+/// Stream operator for null  literals.
 inline std::ostream &operator<<(std::ostream &os, const null &)
 {
     return os << "<null>";

@@ -13,6 +13,7 @@ namespace pmql {
 namespace err {
 
 
+/// Macro list of available error definitions.
 #define ErrorKinds \
     ErrorKind(OP_BAD_ARGUMENT         ) \
     ErrorKind(OP_BAD_SUBSTITUTION     ) \
@@ -30,13 +31,17 @@ namespace err {
     ErrorKind(EXPR_BAD_FUNCTION_ID    ) \
 
 
+/// Generated enum that can identify any defined error.
 #define ErrorKind(E) E,
 enum class Kind { ErrorKinds };
 #undef ErrorKind
 
 
+/// Specializations of this template can describe any defined error.
 template<Kind K> struct Details;
 
+
+/// Stream operator for error kind descriptors.
 template<Kind K>
 std::ostream &operator<<(std::ostream &os, const Details<K> &details)
 {
@@ -269,13 +274,16 @@ template<> struct Details<Kind::EXPR_BAD_FUNCTION_ID>
 };
 
 
+/// Defines an error type that can hold any defined error along with its details.
 #define ErrorKind(E) , Kind::E
 using Error = ErrorTemplate<Kind, Details ErrorKinds>;
 #undef ErrorKind
 
 
+/// Defines error kind marker type.
 template<Kind K> using kind_t = typename Error::template kind_t<K>;
 
+/// Defines error kind marker literal template.
 template<Kind K> inline constexpr kind_t<K> kind;
 
 
@@ -285,15 +293,25 @@ template<Kind K> inline constexpr kind_t<K> kind;
 } // namespace err
 
 
+/// Monadic result type that can hold either a value (including void) or an error.
 template<typename V> using Result = tl::expected<V, err::Error>;
 
 
+/// Construct result-compatible error descriptor.
+/// @tparam K error kind identifier.
+/// @tparam Args error descriptor's constructor / direct list initialization arguments.
+/// @param args direct list initialization arguments.
+/// @return result-compatible error descriptor.
 template<err::Kind K, typename... Args>
 tl::unexpected<err::Error> error(Args &&...args)
 {
     return tl::unexpected<err::Error> {err::Error {err::kind<K>, std::forward<Args>(args)...}};
 }
 
+/// Re-pack error descriptor so that it can be used to create a Result object of a different success type.
+/// @tparam E error type.
+/// @param err error descriptor.
+/// @return result-compatible error descriptor.
 template<typename E>
 tl::unexpected<err::Error> error(E &&err)
 {
@@ -307,6 +325,7 @@ tl::unexpected<err::Error> error(E &&err)
 namespace tl {
 
 
+/// Streaming operator for Result types.
 template<typename V>
 std::ostream &operator<<(std::ostream &os, const expected<V, pmql::err::Error> &result)
 {

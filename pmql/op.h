@@ -11,126 +11,233 @@
 namespace pmql::op {
 
 
+/// Operation identifier.
 using Id = size_t;
 
 
+/// Describes a typed constant value stored elsewhere.
 class Const
 {
+    /// Streaming support.
     friend std::ostream &operator<<(std::ostream &, const Const &);
 
+    /// Constant's index in an extenal storage.
     const Id d_sub;
 
 public:
+    /// Construct operation instance.
+    /// @param id external storage index.
     explicit Const(Id id);
 
+    /// Return external storage index.
+    /// @return external storage index.
     Id id() const;
 
+    /// Calls provided callback with external storage index.
+    /// @tparam To callable: void(Id);
+    /// @param to callback instance.
     template<typename To>
     void refers(To &&to) const;
 
+    /// Fetches constant's value from extenal storage using provided predicate.
+    /// @tparam Store type used to hold evaluation result.
+    /// @tparam Arg callable: Result<Store>(Id);
+    /// @param arg external storage getter.
+    /// @return Storage-wrapped constant value or an error.
     template<typename Store, typename Arg>
     Result<Store> eval(Arg &&arg) const;
 };
 
 
+/// Describes an untyped variable, that can be substituted by a typed value.
 class Var : public Const
 {
+    /// Streaming support.
     friend std::ostream &operator<<(std::ostream &, const Var &);
 
+    /// Unique variable name.
     const std::string_view d_name;
 
 public:
+    /// Construct operation instance.
+    /// @param id external substitution storage index.
+    /// @param name variable name.
     explicit Var(Id id, std::string_view name);
 
+    /// Return variable name.
+    /// @return variable name.
     std::string_view name() const;
 };
 
 
-template<template <typename = void> typename Op>
+/// Describes unary operation identified by provided std-like functional object.
+/// @tparam Op std-like functional object (i.e. std::negate).
+template<template <typename = void> typename Fn>
 class Unary
 {
+    /// Streaming support.
     template<template <typename> typename O>
     friend std::ostream &operator<<(std::ostream &, const Unary<O> &);
 
-    const Op<> d_op;
+    /// Operation's functional object.
+    const Fn<> d_op;
+
+    /// Reference to value to apply the operation to.
     const Id d_arg;
 
 public:
+    /// Construct operation instance.
+    /// @param arg operation argument reference.
     explicit Unary(Id arg);
 
+    /// Calls provided callback with operation argument reference.
+    /// @tparam To callable: void(Id);
+    /// @param to callback instance.
     template<typename To>
     void refers(To &&to) const;
 
+    /// Fetches arguments, applies the operation and returns results.
+    /// @tparam Store type used to hold evaluation result.
+    /// @tparam Arg callable: Result<Store>(Id);
+    /// @param arg operation argument getter.
+    /// @return Storage-wrapped operation result or an error.
     template<typename Store, typename Arg>
     Result<Store> eval(Arg &&arg) const;
 };
 
 
-template<template <typename = void> typename Op>
+/// Describes binary operation identified by provided std-like functional object.
+/// @tparam Op std-like functional object (i.e. std::plus).
+template<template <typename = void> typename Fn>
 class Binary
 {
+    /// Streaming support.
     template<template <typename> typename O>
     friend std::ostream &operator<<(std::ostream &, const Binary<O> &);
 
-    const Op<> d_op;
+    /// Operation's functional object.
+    const Fn<> d_op;
+
+    /// Reference to the first argument.
     const Id d_lhs;
+
+    /// Reference to the second argument.
     const Id d_rhs;
 
 public:
+    /// Construct operation instance.
+    /// @param lhs reference to the first argument.
+    /// @param rhs reference to the second argument.
     explicit Binary(Id lhs, Id rhs);
 
+    /// Calls provided callback with operation argument references.
+    /// @tparam To callable: void(Id);
+    /// @param to callback instance.
     template<typename To>
     void refers(To &&to) const;
 
+    /// Fetches arguments, applies the operation and returns results.
+    /// @tparam Store type used to hold evaluation result.
+    /// @tparam Arg callable: Result<Store>(Id);
+    /// @param arg operation argument getter.
+    /// @return Storage-wrapped operation result or an error.
     template<typename Store, typename Arg>
     Result<Store> eval(Arg &&arg) const;
 };
 
 
+/// Describes condition branching ("ternary operator").
+/// Only condition and active branch are evaluated.
 class Ternary
 {
+    /// Streaming support.
     friend std::ostream &operator<<(std::ostream &, const Ternary &);
 
+    /// Reference to the condition. Value must be convertible to bool.
     const Id d_cond;
+
+    /// Reference to the true branch value.
     const Id d_true;
+
+    /// Reference to the false branch value.
     const Id d_false;
 
 public:
+    /// Construct operation instance.
+    /// @param cond reference to the condition value. Must be convertible to bool.
+    /// @param iftrue reference to the true branch value.
+    /// @param iffalse reference to the false branch value.
     explicit Ternary(Id cond, Id iftrue, Id iffalse);
 
+    /// Calls provided callback with operation argument references.
+    /// @tparam To callable: void(Id);
+    /// @param to callback instance.
     template<typename To>
     void refers(To &&to) const;
 
+    /// Fetches arguments, applies the operation and returns results.
+    /// @tparam Store type used to hold evaluation result.
+    /// @tparam Arg callable: Result<Store>(Id);
+    /// @param arg operation argument getter.
+    /// @return Storage-wrapped operation result or an error.
     template<typename Store, typename Arg>
     Result<Store> eval(Arg &&arg) const;
 };
 
 
+/// Describes an external function with any number of arguments.
 class Extension
 {
+    /// Streaming support.
     friend std::ostream &operator<<(std::ostream &, const Extension &);
 
+    /// Function name, not used as an identifier.
     std::string_view d_name;
+
+    /// Unique function identifier.
     Id d_fun;
+
+    /// References to function's arguments.
     std::vector<Id> d_args;
 
 public:
+    /// Construct operation instance.
+    /// @param name function name.
+    /// @param funid unique function identifier.
+    /// @param args references to function's arguments.
     explicit Extension(std::string_view name, Id funid, std::vector<Id> &&args);
 
+    /// Return function identifier.
+    /// @return function identifier.
     Id fun() const;
 
+    /// Return function name.
+    /// @return function name.
     std::string_view name() const;
 
+    /// Calls provided callback with operation argument references.
+    /// @tparam To callable: void(Id);
+    /// @param to callback instance.
     template<typename To>
     void refers(To &&to) const;
 
+    /// Calls provided function with argument references, returns invocation result.
+    /// @tparam Store type used to hold evaluation result.
+    /// @tparam Fun callable, Result<Store>(iterator, iterator);
+    /// @param fun function implementation.
+    /// @return Storage-wrapped operation result or an error.
     template<typename Store, typename Fun>
     Result<Store> eval(Fun &&fun) const;
 };
 
 
+/// Main template that describes properties of functional objects that can be used as operations.
+/// @tparam Fn std-like functional object.
 template<template<typename = void> typename Fn> struct Traits;
 
+/// Get human-readable functional object name.
+/// @tparam Fn std-like functional object.
+/// @return operation name.
 template<template<typename = void> typename Fn>
 constexpr std::string_view name()
 {
@@ -138,6 +245,7 @@ constexpr std::string_view name()
 }
 
 
+/// Main template that describes properties of operation objects.
 template<typename Op> struct OpTraits;
 
 template<template<typename> typename Fn> struct OpTraits<Unary <Fn>> { using type = Traits<Fn>; };
@@ -169,24 +277,29 @@ template<> struct OpTraits<Extension>
 namespace detail {
 
 
+/// Type-reconciling adapter for calling functional objects.
+/// @tparam Args pack of types to be used when calling the functional object.
 template<typename... Args> struct With
 {
-    template<template<typename> typename Op, typename Store>
-    using allowed = decltype(Store {std::declval<Op<void>>()(std::declval<const Args &>()...)});
+    /// SFINAE shortcut for checking if an object can be called with current argument types.
+    template<template<typename> typename Fn, typename Store>
+    using allowed = decltype(Store {std::declval<Fn<void>>()(std::declval<const Args &>()...)});
 
-    template<template <typename = void> typename Op, typename Store, typename = void>
+    /// Operation evaluator template, enabled for when arguments are not compatible with the operation.
+    template<template <typename = void> typename Fn, typename Store, typename = void>
     struct Eval
     {
-        static Result<Store> eval(const Op<> &op, const Args &...args)
+        static Result<Store> eval(const Fn<> &op, const Args &...args)
         {
             return error<err::Kind::OP_INCOMPATIBLE_TYPES>(err::format(op), err::format(args...));
         }
     };
 
-    template<template <typename = void> typename Op, typename Store>
-    struct Eval<Op, Store, std::void_t<allowed<Op, Store>>>
+    /// Operation evaluator template, specialization for when arguments are compatible with the operation.
+    template<template <typename = void> typename Fn, typename Store>
+    struct Eval<Fn, Store, std::void_t<allowed<Fn, Store>>>
     {
-        static Result<Store> eval(const Op<> &op, const Args &...args)
+        static Result<Store> eval(const Fn<> &op, const Args &...args)
         {
             return Store {op(args...)};
         }
@@ -194,14 +307,34 @@ template<typename... Args> struct With
 };
 
 
-template<typename Store, template <typename = void> typename Op, typename... Args>
-Result<Store> eval(const Op<> &op, Args &&...args)
+/// Performs type-checking and applies an operation to arguments, if it is possible.
+/// @tparam Store type used to hold evaluation result.
+/// @tparam Fn std-like functional object.
+/// @tparam Args argument value types.
+/// @param op operation to apply.
+/// @param args operation arguments.
+/// @return Wrapped operation result or an error.
+template<typename Store, template <typename = void> typename Fn, typename... Args>
+Result<Store> eval(const Fn<> &op, Args &&...args)
 {
-    return With<Args...>::template Eval<Op, Store>::eval(op, std::forward<Args>(args)...);
+    return With<Args...>::template Eval<Fn, Store>::eval(op, std::forward<Args>(args)...);
 }
 
 
 } // namespace detail
+
+
+/// Hash combining helper.
+/// @see boost::hash_combine
+/// @tparam Ts pack of types to hash and combine.
+/// @param seed hashing seed.
+/// @param value values to hash and combine.
+/// @return combined value hash, can be used as the seed.
+template <typename... Ts>
+size_t hash(size_t seed, const Ts &...values)
+{
+    return seed ^= ((std::hash<Ts>{}(values) + 0x9e3779b9 + (seed << 6) + (seed >> 2)) ^ ...);
+}
 
 
 inline Const::Const(Id id)
@@ -436,13 +569,6 @@ inline std::ostream &operator<<(std::ostream &os, const Extension &ext)
         os << "#" << *it << (std::next(it) == ext.d_args.end() ? "" : ", ");
     }
     return os << ")";
-}
-
-
-template <typename... Ts>
-size_t hash(size_t seed, const Ts &...values)
-{
-    return seed ^= ((std::hash<Ts>{}(values) + 0x9e3779b9 + (seed << 6) + (seed >> 2)) ^ ...);
 }
 
 

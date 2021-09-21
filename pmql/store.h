@@ -10,72 +10,126 @@
 namespace pmql {
 
 
+/// Container for storing a single nullable type that implements Store and Substitute contracts.
+/// @tparam Name template that provides a name for V type (as a static std::string_view value member).
+/// @tparam V value type to store.
 template<template<typename> typename Name, typename V>
 class Single
 {
+    /// Streaming support.
     template<template<typename> typename N, typename T>
     friend std::ostream &operator<<(std::ostream &, const Single<N, T> &);
 
+    /// True if stored value is a null.
     bool d_null = true;
+
+    /// Stored value.
     V d_value;
 
 public:
+    /// Returns a name for any supported stored type.
+    /// @tparam T any supported stored type.
+    /// @return type name string.
     template<typename T>
     static std::string_view name();
 
+    /// Constructs a container instance that stored a null value.
     Single() = default;
 
+    /// Initializes container with a non-null stored value from an lvalue reference.
+    /// @param value value reference.
     explicit Single(const V &value);
+
+    /// Initializes container with a non-null stored value from an rvalue reference.
+    /// @param value value reference.
     explicit Single(V &&value);
 
+    /// Updates stored value. Part of the Substitute contract.
+    /// @tparam T type, convertible to V.
+    /// @param value new value to store.
+    /// @return reference to updated self.
     template<typename T>
     Single<Name, V> &operator=(T &&value);
 
+    /// Converts to true if stored value is not null.
     operator bool() const;
 
+    /// Calls provided visitor with stored type or null  literal.
+    /// @tparam Visitor callable, T(const V &).
+    /// @param visitor callback to call with stored value.
+    /// @return whatever the visitor casllback returns.
     template<typename Visitor>
     auto operator()(Visitor &&visitor) const -> decltype(auto);
 };
 
 
+/// Container for storing any of provided types that implements Store and Substitute contracts.
+/// @tparam Name template that defines names for all supported types.
+/// @tparam Vs pack of supported type variants.
 template<template<typename> typename Name, typename... Vs>
 class Variant
 {
+    /// Streaming support.
     template<template<typename> typename N, typename... Ts>
     friend std::ostream &operator<<(std::ostream &, const Variant<N, Ts...> &);
 
+    /// Underlying variant type.
     using Value = std::variant<null, Vs...>;
 
+    /// Checks if underlying variant can be constructed from type T.
     template<typename T, typename = void> struct allowed : std::false_type {};
     template<typename T> struct allowed<
         T,
         std::void_t<decltype(Value {std::declval<T>()})>> : std::true_type {};
 
+    /// Variable template for checking if underlying variant can be constructed from type T.
     template<typename T>
     static constexpr bool allowed_v = allowed<T>::value;
 
+    /// Checks if type T is the same as this container type.
     template<typename T>
     static constexpr bool is_self_v = std::is_same_v<std::decay_t<T>, Variant<Name, Vs...>>;
 
+    /// Stored value.
     Value d_value;
 
 public:
+    /// Returns a name for any supported stored type.
+    /// @tparam T any supported stored type.
+    /// @return type name string.
     template<typename T>
     static std::string_view name();
 
+    /// Constructs a container instance that stored a null value.
     Variant() = default;
 
+    /// A non-copy/move ctor that initializes the container with compatible non-null value.
+    /// @tparam T type, convertible to any of allowed types from Vs.
+    /// @param value value to store.
     template<typename T, typename = std::enable_if_t<!is_self_v<T> && allowed_v<T>>>
     explicit Variant(T &&value);
 
+    /// An inplace ctor for any allowed type.
+    /// @tparam T an allowed type to store.
+    /// @tparam Args T constructor argument type pack.
+    /// @param args T constructor arguments.
     template<typename T, typename... Args>
     explicit Variant(std::in_place_type_t<T>, Args &&...args);
 
+    /// Updates stored value. Part of the Substitute contract.
+    /// @tparam V type, convertible to any of the stored types.
+    /// @param value new value to store.
+    /// @return reference to updated self.
     template<typename V>
     Variant<Name, Vs...> &operator=(V &&value);
 
+    /// Converts to true if stored value is not null.
     operator bool() const;
 
+    /// Calls provided visitor with stored type or null  literal.
+    /// @tparam Visitor callable, T(const V &).
+    /// @param visitor callback to call with stored value.
+    /// @return whatever the visitor casllback returns.
     template<typename Visitor>
     auto operator()(Visitor &&visitor) const -> decltype(auto);
 };

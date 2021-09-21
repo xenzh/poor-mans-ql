@@ -9,7 +9,7 @@ This library allows to build and evaluate formula expressions based on std-like 
 - [x] Flow control: `if` operator.
 - [x] Value nullability.
 - [x] Step-by-step evaluation log.
-- [x] External function support (i.e. avail()).
+- [x] External function support (i.e. `avail()`).
 - [ ] String serialization.
 - [ ] Evaluation caching / partial invalidation based on variable substitutions.
 
@@ -18,6 +18,8 @@ This library allows to build and evaluate formula expressions based on std-like 
 - [ ] Proper unit tests.
 - [ ] More detailed benchmarks.
 - [ ] Interface comments.
+- [ ] Fix `ext::Pool::operator+()`.
+- [ ] Operation caching inside `Builder` can lead to ops cycle errors.
 
 ## Build
 
