@@ -86,6 +86,25 @@ public:
 };
 
 
+class Ternary
+{
+    friend std::ostream &operator<<(std::ostream &, const Ternary &);
+
+    const Id d_cond;
+    const Id d_true;
+    const Id d_false;
+
+public:
+    explicit Ternary(Id cond, Id iftrue, Id iffalse);
+
+    template<typename To>
+    void refers(To &&to) const;
+
+    template<typename Store, typename Arg>
+    Result<Store> eval(Arg &&arg) const;
+};
+
+
 template<template<typename = void> typename Fn> struct Traits;
 
 template<template<typename = void> typename Fn>
@@ -99,6 +118,17 @@ template<typename Op> struct OpTraits;
 
 template<template<typename> typename Fn> struct OpTraits<Unary <Fn>> { using type = Traits<Fn>; };
 template<template<typename> typename Fn> struct OpTraits<Binary<Fn>> { using type = Traits<Fn>; };
+
+template<> struct OpTraits<Ternary>
+{
+    struct type
+    {
+        static uintptr_t unique() { return reinterpret_cast<uintptr_t>(&unique); };
+        static constexpr std::string_view name = "if";
+        static constexpr size_t max_arity = 3;
+        using op = Ternary;
+    };
+};
 
 
 namespace detail {
@@ -217,7 +247,8 @@ Result<Store> Unary<Op>::eval(Arg &&arg) const
         return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_arg, item.error());
     }
 
-    return (*item)([&op = d_op] (const auto &typed) -> Result<Store>
+    const auto &value = *item;
+    return value([&op = d_op] (const auto &typed) -> Result<Store>
     {
         return detail::eval<Store>(op, typed);
     });
@@ -278,6 +309,58 @@ std::ostream &operator<<(std::ostream &os, const Binary<O> &binary)
 }
 
 
+inline Ternary::Ternary(Id cond, Id iftrue, Id iffalse)
+    : d_cond(cond)
+    , d_true(iftrue)
+    , d_false(iffalse)
+{
+}
+
+template<typename To>
+void Ternary::refers(To &&to) const
+{
+    to(d_cond);
+    to(d_true);
+    to(d_false);
+}
+
+template<typename Store, typename Arg>
+Result<Store> Ternary::eval(Arg &&arg) const
+{
+    const auto &cond = arg(d_cond);
+    if (!cond)
+    {
+        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_cond, cond.error());
+    }
+
+    auto result = (*cond)([this] (const auto &value) -> Result<bool>
+    {
+        if constexpr (std::is_convertible_v<decltype(value), bool>)
+        {
+            return value;
+        }
+        else
+        {
+            return err::error<err::Kind::OP_TERNARY_BAD_CONDITION>(*this, value);
+        }
+    });
+
+    if (!result)
+    {
+        return err::error(std::move(result).error());
+    }
+
+    return result ?
+        arg(*result ? d_true : d_false) :
+        err::error(std::move(result).error());
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Ternary &ternary)
+{
+    return os << "if #" << ternary.d_cond << " then #" << ternary.d_true << " else #" << ternary.d_false;
+}
+
+
 template <typename... Ts>
 size_t hash(size_t seed, const Ts &...values)
 {
@@ -324,6 +407,16 @@ template<template <typename = void> typename Op> struct hash<pmql::op::Binary<Op
     {
         size_t seed = pmql::op::hash(0, pmql::op::Traits<Op>::unique());
         binary.refers([&seed] (auto ref) mutable { seed = pmql::op::hash(seed, ref); });
+        return seed;
+    }
+};
+
+template<> struct hash<pmql::op::Ternary>
+{
+    size_t operator()(const pmql::op::Ternary &ternary) const noexcept
+    {
+        size_t seed = pmql::op::OpTraits<pmql::op::Ternary>::type::unique();
+        ternary.refers([&seed] (auto ref) mutable { seed = pmql::op::hash(seed, ref); });
         return seed;
     }
 };

@@ -25,6 +25,10 @@
     PmqlStdOp(std, logical_and  , &&, 2) \
     PmqlStdOp(std, logical_or   , ||, 2) \
     PmqlStdOp(std, logical_not  , ! , 1) \
+    PmqlStdOp(std, bit_and      , & , 2) \
+    PmqlStdOp(std, bit_or       , | , 1) \
+    PmqlStdOp(std, bit_xor      , ^ , 1) \
+    PmqlStdOp(std, bit_not      , ~ , 1) \
 
 
 namespace pmql::op {
@@ -87,7 +91,7 @@ PmqlStdOpList
 #undef PmqlStdOp
 
 
-using Any = detail::expand_t<std::variant, detail::AsOp, Const, Var>;
+using Any = detail::expand_t<std::variant, detail::AsOp, Const, Var, Ternary>;
 using List = std::vector<Any>;
 
 

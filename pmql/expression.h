@@ -3,6 +3,7 @@
 #include "error.h"
 #include "ops.h"
 #include "context.h"
+#include "serial.h"
 
 #include <tuple>
 #include <unordered_map>
@@ -22,7 +23,9 @@ class Builder
     std::unordered_map<size_t, op::Id> d_added;
 
     size_t d_nextvar   = 0;
-    std::vector<Store> d_const;
+    std::vector<Store> d_consts;
+
+    Result<void> d_deferred;
 
 private:
     template<typename S>
@@ -34,6 +37,10 @@ private:
     Result<void> visit(op::Id id, std::vector<bool> &visited) const;
 
 public:
+    Builder() = default;
+
+    Builder(std::vector<Store> &&consts, op::List &&ops);
+
     template<typename T>
     Result<op::Id> constant(T &&value);
 
@@ -41,6 +48,8 @@ public:
 
     template<template<typename> typename Fn, typename... Ids>
     Result<op::Id> op(Ids ...args);
+
+    Result<op::Id> branch(op::Id cond, op::Id iftrue, op::Id iffalse);
 
     Result<Expression<Store>> operator()() &&;
 };
@@ -66,6 +75,10 @@ private:
     void eval(op::Id id, Context<Store, Substitute> &context) const;
 
 public:
+    const op::List &operations() const;
+
+    const std::vector<Store> &constants() const;
+
     template<typename Substitute>
     Context<Store, Substitute> context() const;
 
@@ -75,6 +88,63 @@ public:
     template<typename Substitute>
     std::ostream &log(std::ostream &os, const Context<Store, Substitute> &context) const;
 };
+
+
+template<typename Store>
+std::string store(const Expression<Store> &expression)
+{
+    return serial::store(expression.operations(), expression.constants());
+}
+
+
+template<typename Store>
+Result<Expression<Store>> load(std::string_view stored)
+{
+    return serial::load<Store>(stored)
+        .and_then([] (serial::Ingredients<Store> &&ingredients)
+        {
+            auto [ops, consts] = std::move(ingredients);
+            return Builder<Store> {std::move(ops), std::move(consts)}();
+        });
+}
+
+
+namespace detail {
+
+
+class CheckRef
+{
+    const op::List &ops;
+    const std::string_view op;
+    Result<void> status;
+
+public:
+    CheckRef(const op::List &ops, std::string_view op)
+        : ops(ops)
+        , op(op)
+    {
+    }
+
+    void operator()(op::Id id)
+    {
+        if (status.has_value() && id >= ops.size())
+        {
+            status = err::error<err::Kind::BUILDER_REF_TO_UNKNOWN>(
+                ops,
+                op,
+                id,
+                ops.size() - 1);
+        }
+    }
+
+    const Result<void> &operator()() const
+    {
+        return status;
+    }
+};
+
+
+} // namespace detail
 
 
 template<typename Store>
@@ -114,7 +184,7 @@ Result<void> Builder<Store>::visit(op::Id id, std::vector<bool> &visited) const
             {
                 op.refers([this, id, &op, &refcheck] (op::Id sub) mutable
                 {
-                    const auto next = std::is_same_v<Op, op::Const> ? d_const.size() : d_nextvar;
+                    const auto next = std::is_same_v<Op, op::Const> ? d_consts.size() : d_nextvar;
                     if (refcheck.has_value() && sub >= next)
                     {
                         refcheck = err::error<err::Kind::BUILDER_BAD_SUBSTITUTION>(
@@ -147,13 +217,72 @@ Result<void> Builder<Store>::visit(op::Id id, std::vector<bool> &visited) const
 }
 
 template<typename Store>
+Builder<Store>::Builder(std::vector<Store> &&consts, op::List &&ops)
+    : d_consts(std::move(consts))
+    , d_ops(std::move(ops))
+    , d_nextvar(0)
+{
+    op::Id current = 0;
+    for (const auto &op : d_ops)
+    {
+        std::visit(
+            [this, current] (const auto &op) mutable
+            {
+                // check consts separately, ignore vars, check ops refers
+                using Op = std::decay_t<decltype(op)>;
+
+                if constexpr (std::is_same_v<Op, op::Const>)
+                {
+                    op::Id cn = 0;
+                    op.refers([&cn] (op::Id ref) mutable { cn = ref; });
+                    if (cn >= d_consts.size())
+                    {
+                        d_deferred = err::error<err::Kind::BUILDER_BAD_SUBSTITUTION>(
+                            d_ops,
+                            op,
+                            current,
+                            cn,
+                            d_consts.size() - 1);
+                    }
+                }
+                else if constexpr (std::is_same_v<Op, op::Var>)
+                {
+                    ++d_nextvar;
+                }
+                else // ops
+                {
+                    op.refers([this, current, &op] (op::Id ref) mutable
+                    {
+                        if (d_deferred.has_value() && ref >= current)
+                        {
+                            d_deferred = err::error<err::Kind::BUILDER_BAD_ARGUMENT>(
+                                d_ops,
+                                op,
+                                current,
+                                ref);
+                        }
+                    });
+                }
+            },
+            op);
+
+        if (!d_deferred.has_value())
+        {
+            break;
+        }
+
+        ++current;
+    }
+}
+
+template<typename Store>
 template<typename T>
 Result<op::Id> Builder<Store>::constant(T &&value)
 {
-    auto result = append(op::Const {d_const.size()});
+    auto result = append(op::Const {d_consts.size()});
     if (result.has_value() && *result == d_ops.size() - 1)
     {
-        d_const.emplace_back(std::forward<T>(value));
+        d_consts.emplace_back(std::forward<T>(value));
     }
 
     return result;
@@ -175,24 +304,27 @@ template<typename Store>
 template<template<typename> typename Fn, typename... Ids>
 Result<op::Id> Builder<Store>::op(Ids ...ids)
 {
-    Result<void> goodref;
-    auto checkref = [this, &goodref] (op::Id ref) mutable
-    {
-        if (goodref.has_value() && ref >= d_ops.size())
-        {
-            goodref = err::error<err::Kind::BUILDER_REF_TO_UNKNOWN>(
-                d_ops,
-                op::Traits<Fn>::name,
-                ref,
-                d_ops.size() - 1);
-        }
-    };
-
+    detail::CheckRef checkref {d_ops, op::Traits<Fn>::name};
     (checkref(ids), ...);
 
-    return goodref.and_then([this, args = std::forward_as_tuple(ids...)]
+    return checkref().and_then([this, args = std::forward_as_tuple(ids...)]
     {
         return append(std::make_from_tuple<typename op::Traits<Fn>::op>(std::move(args)));
+    });
+}
+
+template<typename Store>
+Result<op::Id> Builder<Store>::branch(op::Id cond, op::Id iftrue, op::Id iffalse)
+{
+    detail::CheckRef checkref {d_ops, "if"};
+
+    checkref(cond);
+    checkref(iftrue);
+    checkref(iffalse);
+
+    return checkref().and_then([this, cond, iftrue, iffalse]
+    {
+        return append(op::Ternary {cond, iftrue, iffalse});
     });
 }
 
@@ -204,10 +336,21 @@ Result<Expression<Store>> Builder<Store>::operator()() &&
         return err::error<err::Kind::BUILDER_EMPTY>();
     }
 
+    if (!d_deferred)
+    {
+        return err::error(std::move(d_deferred).error());
+    }
+
     std::vector<bool> visited(d_ops.size(), false);
 
-    return visit(d_ops.size() - 1, visited)
-        .and_then([this, &visited, ops = std::move(d_ops), cn = std::move(d_const)] () mutable -> Result<Expression<Store>>
+    return visit(d_ops.size() - 1, visited).and_then(
+        [
+            this,
+            &visited,
+            ops = std::move(d_ops),
+            cn = std::move(d_consts)
+        ]
+        () mutable -> Result<Expression<Store>>
         {
             auto dangling = std::find(visited.begin(), visited.end(), false);
             if (dangling != visited.end())
@@ -233,7 +376,7 @@ std::ostream &operator<<(std::ostream &os, const Builder<Store> &builder)
 
     os << "\nConstants:\n";
     size_t id = 0;
-    for (const auto &cn : builder.d_const)
+    for (const auto &cn : builder.d_consts)
     {
         os << "\t_" << id++ << ": " << cn << "\n";
     }
@@ -360,6 +503,18 @@ void Expression<Store>::eval(op::Id id, Context<Store, Substitute> &context) con
             }
         },
         d_ops[id]);
+}
+
+template<typename Store>
+const op::List &Expression<Store>::operations() const
+{
+    return d_ops;
+}
+
+template<typename Store>
+const std::vector<Store> &Expression<Store>::constants() const
+{
+    return d_const;
 }
 
 template<typename Store>

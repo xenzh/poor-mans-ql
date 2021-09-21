@@ -17,6 +17,7 @@ namespace err {
     ErrorKind(OP_BAD_ARGUMENT         ) \
     ErrorKind(OP_BAD_SUBSTITUTION     ) \
     ErrorKind(OP_INCOMPATIBLE_TYPES   ) \
+    ErrorKind(OP_TERNARY_BAD_CONDITION) \
     ErrorKind(BUILDER_EMPTY           ) \
     ErrorKind(BUILDER_REF_TO_UNKNOWN  ) \
     ErrorKind(BUILDER_DANGLING        ) \
@@ -91,6 +92,24 @@ template<> struct Details<Kind::OP_INCOMPATIBLE_TYPES>
     void operator()(std::ostream &os) const
     {
         os << "Operation " << op << " cannot be called with arguments of following types: " << argtypes;
+    }
+};
+
+template<> struct Details<Kind::OP_TERNARY_BAD_CONDITION>
+{
+    std::string op;
+    std::string value;
+
+    template<typename Op, typename Val>
+    Details(Op &&op, Val &&val)
+        : op(format(op))
+        , value(format(val))
+    {
+    }
+
+    void operator()(std::ostream &os) const
+    {
+        os << "Ternary operator \"" << op << "\"'s condition cannot be converted to bool: " << value;
     }
 };
 

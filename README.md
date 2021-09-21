@@ -2,6 +2,22 @@
 
 This library allows to build and evaluate formula expressions based on std-like functional objects. Type system is data-driven: library borrows allowed types from object storage, provided by the client, evaluation result types are inferred from variable substitutions.
 
+## Features
+
+- [x] Builtin support for all std operator objects from `<functional>`.
+- [x] Typed constants and untyped variables.
+- [x] Flow control: `if` operator.
+- [x] Value nullability.
+- [x] Step-by-step evaluation log.
+- [ ] External function support (i.e. avail()).
+- [ ] String serialization.
+- [ ] Evaluation caching / partial invalidation based on variable substitutions.
+
+### Code TODOs:
+
+- [ ] Proper unit tests.
+- [ ] More detailed benchmarks.
+
 ## Build
 
 ```sh
@@ -60,6 +76,8 @@ pmql::Result<Value> test()
 }
 ```
 
+See [these showcase unit tests](./test/example.t.cpp) for more features.
+
 ## Performance
 
 This version is more of a proof of concept, and benchmarks do not look too inspiring:
@@ -90,12 +108,3 @@ VarPlusConstParam_Pmql<VariantInt>/10000             11.7 ms         11.7 ms    
 VarPlusConstParam_Pmql<VariantIntDouble>/10000       11.8 ms         11.8 ms           59
 ```
 
-## TODO
-
-- [x] Prevent full specialization for all variant types x ops
-- [ ] Ternary (n-ary) ops.
-- [ ] Custom ops: if (3), avail (N).
-- [ ] Store/load from string.
-- [ ] Context caching / selective invalidation.
-- [ ] Better benchmark converage.
-- [ ] Actual unit tests.
