@@ -1,8 +1,10 @@
 #pragma once
 
 #include "error.h"
+#include "op.h"
 #include "ops.h"
 #include "context.h"
+#include "extensions.h"
 #include "serial.h"
 
 #include <tuple>
@@ -12,13 +14,15 @@
 namespace pmql {
 
 
-template<typename Store>
+template<typename Store, typename... Funs>
 class Expression;
 
 
-template<typename Store>
+template<typename Store, typename... Funs>
 class Builder
 {
+    const ext::Pool<Funs...> &d_extensions;
+
     op::List d_ops;
     std::unordered_map<size_t, op::Id> d_added;
 
@@ -28,8 +32,8 @@ class Builder
     Result<void> d_deferred;
 
 private:
-    template<typename S>
-    friend std::ostream &operator<<(std::ostream &, const Builder<S> &);
+    template<typename S, typename... Fs>
+    friend std::ostream &operator<<(std::ostream &, const Builder<S, Fs...> &);
 
     template<typename Op>
     Result<op::Id> append(Op &&op);
@@ -37,9 +41,9 @@ private:
     Result<void> visit(op::Id id, std::vector<bool> &visited) const;
 
 public:
-    Builder() = default;
+    explicit Builder(const ext::Pool<Funs...> &extensions = ext::none);
 
-    Builder(std::vector<Store> &&consts, op::List &&ops);
+    Builder(std::vector<Store> &&consts, op::List &&ops, const ext::Pool<Funs...> &extensions = ext::none);
 
     template<typename T>
     Result<op::Id> constant(T &&value);
@@ -47,27 +51,31 @@ public:
     Result<op::Id> var(std::string_view name);
 
     template<template<typename> typename Fn, typename... Ids>
-    Result<op::Id> op(Ids ...args);
+    Result<op::Id> op(Ids ...ids);
+
+    template<typename... Ids>
+    Result<op::Id> fun(std::string_view name, Ids ...ids);
 
     Result<op::Id> branch(op::Id cond, op::Id iftrue, op::Id iffalse);
 
-    Result<Expression<Store>> operator()() &&;
+    Result<Expression<Store, Funs...>> operator()() &&;
 };
 
 
-template<typename Store>
+template<typename Store, typename... Funs>
 class Expression
 {
+    const ext::Pool<Funs...> &d_extensions;
     const op::List d_ops;
     const std::vector<Store> d_const;
 
 private:
-    template<typename S> friend class Builder;
+    template<typename S, typename... Fs> friend class Builder;
 
-    template<typename S>
-    friend std::ostream &operator<<(std::ostream &, const Expression<S> &);
+    template<typename S, typename... Fs>
+    friend std::ostream &operator<<(std::ostream &, const Expression<S, Fs...> &);
 
-    explicit Expression(op::List &&ops, std::vector<Store> &&constants);
+    Expression(const ext::Pool<Funs...> &exts, op::List &&ops, std::vector<Store> &&constants);
 
     std::ostream &format(std::ostream &os, op::Id current) const;
 
@@ -90,6 +98,22 @@ public:
 };
 
 
+template<typename Store, typename... Funs>
+Builder<Store, Funs...> builder(const ext::Pool<Funs...> &extensions = ext::none)
+{
+    return Builder<Store, Funs...> {extensions};
+}
+
+template<typename Store, typename... Funs>
+Builder<Store, Funs...> builder(
+    std::vector<Store> &&consts,
+    op::List &&ops,
+    const ext::Pool<Funs...> &extensions = ext::none)
+{
+    return Builder<Store, Funs...> {std::move(consts), std::move(ops), extensions};
+}
+
+
 template<typename Store>
 std::string store(const Expression<Store> &expression)
 {
@@ -97,14 +121,14 @@ std::string store(const Expression<Store> &expression)
 }
 
 
-template<typename Store>
-Result<Expression<Store>> load(std::string_view stored)
+template<typename Store, typename... Funs>
+Result<Expression<Store>> load(std::string_view stored, const ext::Pool<Funs...> &extensions = ext::none)
 {
     return serial::load<Store>(stored)
         .and_then([] (serial::Ingredients<Store> &&ingredients)
         {
             auto [ops, consts] = std::move(ingredients);
-            return Builder<Store> {std::move(ops), std::move(consts)}();
+            return builder<Store>(std::move(ops), std::move(consts))();
         });
 }
 
@@ -114,32 +138,33 @@ namespace detail {
 
 class CheckRef
 {
-    const op::List &ops;
-    const std::string_view op;
-    Result<void> status;
+    const op::List &d_ops;
+    const std::string_view d_op;
+
+    Result<void> d_status;
 
 public:
     CheckRef(const op::List &ops, std::string_view op)
-        : ops(ops)
-        , op(op)
+        : d_ops(ops)
+        , d_op(op)
     {
     }
 
     void operator()(op::Id id)
     {
-        if (status.has_value() && id >= ops.size())
+        if (d_status.has_value() && id >= d_ops.size())
         {
-            status = err::error<err::Kind::BUILDER_REF_TO_UNKNOWN>(
-                ops,
-                op,
+            d_status = error<err::Kind::BUILDER_REF_TO_UNKNOWN>(
+                d_ops,
+                d_op,
                 id,
-                ops.size() - 1);
+                d_ops.size() - 1);
         }
     }
 
     const Result<void> &operator()() const
     {
-        return status;
+        return d_status;
     }
 };
 
@@ -147,9 +172,9 @@ public:
 } // namespace detail
 
 
-template<typename Store>
+template<typename Store, typename... Funs>
 template<typename Op>
-Result<op::Id> Builder<Store>::append(Op &&op)
+Result<op::Id> Builder<Store, Funs...>::append(Op &&op)
 {
     auto [it, emplaced] = d_added.try_emplace(std::hash<Op> {}(op), d_ops.size());
     if (emplaced)
@@ -160,12 +185,12 @@ Result<op::Id> Builder<Store>::append(Op &&op)
     return it->second;
 }
 
-template<typename Store>
-Result<void> Builder<Store>::visit(op::Id id, std::vector<bool> &visited) const
+template<typename Store, typename... Funs>
+Result<void> Builder<Store, Funs...>::visit(op::Id id, std::vector<bool> &visited) const
 {
     if (id >= d_ops.size())
     {
-        return err::error<err::Kind::BUILDER_REF_TO_UNKNOWN>(
+        return error<err::Kind::BUILDER_REF_TO_UNKNOWN>(
             d_ops,
             err::format("Operation #", id),
             id,
@@ -187,7 +212,7 @@ Result<void> Builder<Store>::visit(op::Id id, std::vector<bool> &visited) const
                     const auto next = std::is_same_v<Op, op::Const> ? d_consts.size() : d_nextvar;
                     if (refcheck.has_value() && sub >= next)
                     {
-                        refcheck = err::error<err::Kind::BUILDER_BAD_SUBSTITUTION>(
+                        refcheck = error<err::Kind::BUILDER_BAD_SUBSTITUTION>(
                             d_ops,
                             op,
                             id,
@@ -206,7 +231,7 @@ Result<void> Builder<Store>::visit(op::Id id, std::vector<bool> &visited) const
                     }
 
                     refcheck = ref >= id ?
-                        err::error<err::Kind::BUILDER_BAD_ARGUMENT>(d_ops, op, id, ref) :
+                        error<err::Kind::BUILDER_BAD_ARGUMENT>(d_ops, op, id, ref) :
                         visit(ref, visited);
                 });
             }
@@ -216,9 +241,19 @@ Result<void> Builder<Store>::visit(op::Id id, std::vector<bool> &visited) const
         d_ops[id]);
 }
 
-template<typename Store>
-Builder<Store>::Builder(std::vector<Store> &&consts, op::List &&ops)
-    : d_consts(std::move(consts))
+template<typename Store, typename... Funs>
+Builder<Store, Funs...>::Builder(const ext::Pool<Funs...> &extensions /*= ext::none*/)
+    : d_extensions(extensions)
+{
+}
+
+template<typename Store, typename... Funs>
+Builder<Store, Funs...>::Builder(
+    std::vector<Store> &&consts,
+    op::List &&ops,
+    const ext::Pool<Funs...> &extensions /*= ext::none*/)
+    : d_extensions(extensions)
+    , d_consts(std::move(consts))
     , d_ops(std::move(ops))
     , d_nextvar(0)
 {
@@ -228,7 +263,6 @@ Builder<Store>::Builder(std::vector<Store> &&consts, op::List &&ops)
         std::visit(
             [this, current] (const auto &op) mutable
             {
-                // check consts separately, ignore vars, check ops refers
                 using Op = std::decay_t<decltype(op)>;
 
                 if constexpr (std::is_same_v<Op, op::Const>)
@@ -237,7 +271,7 @@ Builder<Store>::Builder(std::vector<Store> &&consts, op::List &&ops)
                     op.refers([&cn] (op::Id ref) mutable { cn = ref; });
                     if (cn >= d_consts.size())
                     {
-                        d_deferred = err::error<err::Kind::BUILDER_BAD_SUBSTITUTION>(
+                        d_deferred = error<err::Kind::BUILDER_BAD_SUBSTITUTION>(
                             d_ops,
                             op,
                             current,
@@ -255,7 +289,7 @@ Builder<Store>::Builder(std::vector<Store> &&consts, op::List &&ops)
                     {
                         if (d_deferred.has_value() && ref >= current)
                         {
-                            d_deferred = err::error<err::Kind::BUILDER_BAD_ARGUMENT>(
+                            d_deferred = error<err::Kind::BUILDER_BAD_ARGUMENT>(
                                 d_ops,
                                 op,
                                 current,
@@ -275,9 +309,9 @@ Builder<Store>::Builder(std::vector<Store> &&consts, op::List &&ops)
     }
 }
 
-template<typename Store>
+template<typename Store, typename... Funs>
 template<typename T>
-Result<op::Id> Builder<Store>::constant(T &&value)
+Result<op::Id> Builder<Store, Funs...>::constant(T &&value)
 {
     auto result = append(op::Const {d_consts.size()});
     if (result.has_value() && *result == d_ops.size() - 1)
@@ -288,8 +322,8 @@ Result<op::Id> Builder<Store>::constant(T &&value)
     return result;
 }
 
-template<typename Store>
-Result<op::Id> Builder<Store>::var(std::string_view name)
+template<typename Store, typename... Funs>
+Result<op::Id> Builder<Store, Funs...>::var(std::string_view name)
 {
     auto result = append(op::Var {d_nextvar, name});
     if (result.has_value() && *result == d_ops.size() - 1)
@@ -300,21 +334,40 @@ Result<op::Id> Builder<Store>::var(std::string_view name)
     return result;
 }
 
-template<typename Store>
+template<typename Store, typename... Funs>
 template<template<typename> typename Fn, typename... Ids>
-Result<op::Id> Builder<Store>::op(Ids ...ids)
+Result<op::Id> Builder<Store, Funs...>::op(Ids ...ids)
 {
     detail::CheckRef checkref {d_ops, op::Traits<Fn>::name};
     (checkref(ids), ...);
 
-    return checkref().and_then([this, args = std::forward_as_tuple(ids...)]
-    {
-        return append(std::make_from_tuple<typename op::Traits<Fn>::op>(std::move(args)));
-    });
+    return checkref()
+        .and_then([this, args = std::forward_as_tuple(ids...)]
+        {
+            return append(std::make_from_tuple<typename op::Traits<Fn>::op>(std::move(args)));
+        });
 }
 
-template<typename Store>
-Result<op::Id> Builder<Store>::branch(op::Id cond, op::Id iftrue, op::Id iffalse)
+template<typename Store, typename... Funs>
+template<typename... Ids>
+Result<op::Id> Builder<Store, Funs...>::fun(std::string_view name, Ids ...ids)
+{
+    detail::CheckRef checkref {d_ops, name};
+    (checkref(ids), ...);
+
+    return checkref()
+        .and_then([this, name]
+        {
+            return d_extensions[name];
+        })
+        .and_then([this, name, ids = std::vector<op::Id> {ids...}] (ext::FunId fun) mutable
+        {
+            return append(op::Extension {name, fun, std::move(ids)});
+        });
+}
+
+template<typename Store, typename... Funs>
+Result<op::Id> Builder<Store, Funs...>::branch(op::Id cond, op::Id iftrue, op::Id iffalse)
 {
     detail::CheckRef checkref {d_ops, "if"};
 
@@ -322,23 +375,24 @@ Result<op::Id> Builder<Store>::branch(op::Id cond, op::Id iftrue, op::Id iffalse
     checkref(iftrue);
     checkref(iffalse);
 
-    return checkref().and_then([this, cond, iftrue, iffalse]
-    {
-        return append(op::Ternary {cond, iftrue, iffalse});
-    });
+    return checkref()
+        .and_then([this, cond, iftrue, iffalse]
+        {
+            return append(op::Ternary {cond, iftrue, iffalse});
+        });
 }
 
-template<typename Store>
-Result<Expression<Store>> Builder<Store>::operator()() &&
+template<typename Store, typename... Funs>
+Result<Expression<Store, Funs...>> Builder<Store, Funs...>::operator()() &&
 {
     if (d_ops.empty())
     {
-        return err::error<err::Kind::BUILDER_EMPTY>();
+        return error<err::Kind::BUILDER_EMPTY>();
     }
 
     if (!d_deferred)
     {
-        return err::error(std::move(d_deferred).error());
+        return error(std::move(d_deferred).error());
     }
 
     std::vector<bool> visited(d_ops.size(), false);
@@ -350,7 +404,7 @@ Result<Expression<Store>> Builder<Store>::operator()() &&
             ops = std::move(d_ops),
             cn = std::move(d_consts)
         ]
-        () mutable -> Result<Expression<Store>>
+        () mutable -> Result<Expression<Store, Funs...>>
         {
             auto dangling = std::find(visited.begin(), visited.end(), false);
             if (dangling != visited.end())
@@ -358,19 +412,19 @@ Result<Expression<Store>> Builder<Store>::operator()() &&
                 const size_t id = std::distance(visited.begin(), dangling);
 
                 return std::visit(
-                    [this, id] (const auto &op) -> Result<Expression<Store>>
+                    [this, id] (const auto &op) -> Result<Expression<Store, Funs...>>
                     {
-                        return err::error<err::Kind::BUILDER_DANGLING>(d_ops, op, id);
+                        return error<err::Kind::BUILDER_DANGLING>(d_ops, op, id);
                     },
                     ops[id]);
             }
 
-            return Expression<Store> {std::move(ops), std::move(cn)};
+            return Expression<Store, Funs...> {d_extensions, std::move(ops), std::move(cn)};
         });
 }
 
-template<typename Store>
-std::ostream &operator<<(std::ostream &os, const Builder<Store> &builder)
+template<typename Store, typename... Funs>
+std::ostream &operator<<(std::ostream &os, const Builder<Store, Funs...> &builder)
 {
     os << "Operations:\n" << builder.d_ops;
 
@@ -381,19 +435,26 @@ std::ostream &operator<<(std::ostream &os, const Builder<Store> &builder)
         os << "\t_" << id++ << ": " << cn << "\n";
     }
 
+    os << "\nExtension functions:\n";
+    for (const auto &[name, funid] : builder.d_extensions)
+    {
+        os << "\t@" << funid << ": " << name << "\n";
+    }
+
     return os;
 }
 
 
-template<typename Store>
-Expression<Store>::Expression(op::List &&ops, std::vector<Store> &&constants)
-    : d_ops(std::move(ops))
+template<typename Store, typename... Funs>
+Expression<Store, Funs...>::Expression(const ext::Pool<Funs...> &exts, op::List &&ops, std::vector<Store> &&constants)
+    : d_extensions(exts)
+    , d_ops(std::move(ops))
     , d_const(std::move(constants))
 {
 }
 
-template<typename Store>
-std::ostream &Expression<Store>::format(std::ostream &os, op::Id current) const
+template<typename Store, typename... Funs>
+std::ostream &Expression<Store, Funs...>::format(std::ostream &os, op::Id current) const
 {
     std::visit(
         [this, &os] (const auto &op) mutable
@@ -442,7 +503,15 @@ std::ostream &Expression<Store>::format(std::ostream &os, op::Id current) const
                 }
                 else
                 {
-                    os << Tr::name << "(";
+                    if constexpr (std::is_same_v<Op, op::Extension>)
+                    {
+                        os << op.name() << "(";
+                    }
+                    else
+                    {
+                        os << Tr::name << "(";
+                    }
+
                     bool first = true;
                     op.refers([this, &os, &first] (op::Id ref) mutable
                     {
@@ -465,9 +534,9 @@ std::ostream &Expression<Store>::format(std::ostream &os, op::Id current) const
     return os;
 }
 
-template<typename Store>
+template<typename Store, typename... Funs>
 template<typename Substitute>
-void Expression<Store>::eval(op::Id id, Context<Store, Substitute> &context) const
+void Expression<Store, Funs...>::eval(op::Id id, Context<Store, Substitute> &context) const
 {
     std::visit(
         [this, id, &context] (const auto &op) mutable
@@ -493,7 +562,24 @@ void Expression<Store>::eval(op::Id id, Context<Store, Substitute> &context) con
                 });
             }
 
-            else
+            else if constexpr (std::is_same_v<Op, op::Extension>)
+            {
+                const auto &pool = d_extensions;
+                res = op.template eval<Store>([this, &pool, &context] (auto fun, auto begin, auto end)
+                {
+                    return pool.template invoke<Store>(
+                        fun,
+                        [this, &context] (op::Id ref)
+                        {
+                            this->eval(ref, context);
+                            return context.d_results[ref];
+                        },
+                        begin,
+                        end);
+                });
+            }
+
+            else // unary, binary, ternary
             {
                 res = op.template eval<Store>([this, &context] (auto ref) mutable
                 {
@@ -505,53 +591,38 @@ void Expression<Store>::eval(op::Id id, Context<Store, Substitute> &context) con
         d_ops[id]);
 }
 
-template<typename Store>
-const op::List &Expression<Store>::operations() const
+template<typename Store, typename... Funs>
+const op::List &Expression<Store, Funs...>::operations() const
 {
     return d_ops;
 }
 
-template<typename Store>
-const std::vector<Store> &Expression<Store>::constants() const
+template<typename Store, typename... Funs>
+const std::vector<Store> &Expression<Store, Funs...>::constants() const
 {
     return d_const;
 }
 
-template<typename Store>
+template<typename Store, typename... Funs>
 template<typename Substitute>
-Context<Store, Substitute> Expression<Store>::context() const
+Context<Store, Substitute> Expression<Store, Funs...>::context() const
 {
     return Context<Store, Substitute> {d_ops};
 }
 
-template<typename Store>
+template<typename Store, typename... Funs>
 template<typename Substitute>
-Result<Store> Expression<Store>::operator()(Context<Store, Substitute> &context) const
+Result<Store> Expression<Store, Funs...>::operator()(Context<Store, Substitute> &context) const
 {
     eval(d_ops.size() - 1, context);
     return context.d_results[d_ops.size() - 1];
 }
 
-template<typename Store>
+template<typename Store, typename... Funs>
 template<typename Substitute>
-std::ostream &Expression<Store>::log(std::ostream &os, const Context<Store, Substitute> &context) const
+std::ostream &Expression<Store, Funs...>::log(std::ostream &os, const Context<Store, Substitute> &context) const
 {
-    os << "Constants:" << (d_const.empty() ? " <none>" : "\n");
     size_t id = 0;
-    for (const auto &cn : d_const)
-    {
-        os << "\t_" << id++ << ": " << cn << "\n";
-    }
-
-    os << "\nVariables:" << (context.d_substitutions.empty() ? " <none>" : "\n");
-    for (const auto &var : context.d_substitutions)
-    {
-        os << "\t$" << var.name() << ": " << var << "\n";
-    }
-
-    os << "\nEvaluations:\n";
-
-    id = 0;
     auto op = d_ops.begin();
     auto rs = context.d_results.begin();
 
@@ -563,8 +634,8 @@ std::ostream &Expression<Store>::log(std::ostream &os, const Context<Store, Subs
     return os;
 }
 
-template<typename Store>
-std::ostream &operator<<(std::ostream &os, const Expression<Store> &expression)
+template<typename Store, typename... Funs>
+std::ostream &operator<<(std::ostream &os, const Expression<Store, Funs...> &expression)
 {
     return expression.format(os, expression.d_ops.size() - 1);
 }

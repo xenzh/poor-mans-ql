@@ -2,6 +2,7 @@
 
 #include "error.h"
 
+#include <limits>
 #include <type_traits>
 #include <ostream>
 #include <string_view>
@@ -105,6 +106,29 @@ public:
 };
 
 
+class Extension
+{
+    friend std::ostream &operator<<(std::ostream &, const Extension &);
+
+    std::string_view d_name;
+    Id d_fun;
+    std::vector<Id> d_args;
+
+public:
+    explicit Extension(std::string_view name, Id funid, std::vector<Id> &&args);
+
+    Id fun() const;
+
+    std::string_view name() const;
+
+    template<typename To>
+    void refers(To &&to) const;
+
+    template<typename Store, typename Fun>
+    Result<Store> eval(Fun &&fun) const;
+};
+
+
 template<template<typename = void> typename Fn> struct Traits;
 
 template<template<typename = void> typename Fn>
@@ -130,6 +154,17 @@ template<> struct OpTraits<Ternary>
     };
 };
 
+template<> struct OpTraits<Extension>
+{
+    struct type
+    {
+        static uintptr_t unique() { return reinterpret_cast<uintptr_t>(&unique); };
+        static constexpr std::string_view name = "fun";
+        static constexpr size_t max_arity = std::numeric_limits<size_t>::max();
+        using op = Extension;
+    };
+};
+
 
 namespace detail {
 
@@ -144,7 +179,7 @@ template<typename... Args> struct With
     {
         static Result<Store> eval(const Op<> &op, const Args &...args)
         {
-            return err::error<err::Kind::OP_INCOMPATIBLE_TYPES>(err::format(op), err::format(args...));
+            return error<err::Kind::OP_INCOMPATIBLE_TYPES>(err::format(op), err::format(args...));
         }
     };
 
@@ -191,7 +226,7 @@ Result<Store> Const::eval(Arg &&arg) const
     const auto &var = arg(d_sub);
     if (!var.has_value())
     {
-        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_sub, var.error());
+        return error<err::Kind::OP_BAD_ARGUMENT>(*this, d_sub, var.error());
     }
 
     return (*var)([] (const auto &typed) -> Result<Store>
@@ -244,7 +279,7 @@ Result<Store> Unary<Op>::eval(Arg &&arg) const
     const auto &item = arg(d_arg);
     if (!item.has_value())
     {
-        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_arg, item.error());
+        return error<err::Kind::OP_BAD_ARGUMENT>(*this, d_arg, item.error());
     }
 
     const auto &value = *item;
@@ -284,13 +319,13 @@ Result<Store> Binary<Op>::eval(Arg &&arg) const
     const auto &lhs = arg(d_lhs);
     if (!lhs.has_value())
     {
-        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_lhs, lhs.error());
+        return error<err::Kind::OP_BAD_ARGUMENT>(*this, d_lhs, lhs.error());
     }
 
     const auto &rhs = arg(d_rhs);
     if (!rhs.has_value())
     {
-        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_rhs, rhs.error());
+        return error<err::Kind::OP_BAD_ARGUMENT>(*this, d_rhs, rhs.error());
     }
 
     return (*lhs)([&op = d_op, &rhs] (const auto &ltyped)
@@ -330,7 +365,7 @@ Result<Store> Ternary::eval(Arg &&arg) const
     const auto &cond = arg(d_cond);
     if (!cond)
     {
-        return err::error<err::Kind::OP_BAD_ARGUMENT>(*this, d_cond, cond.error());
+        return error<err::Kind::OP_BAD_ARGUMENT>(*this, d_cond, cond.error());
     }
 
     auto result = (*cond)([this] (const auto &value) -> Result<bool>
@@ -341,23 +376,66 @@ Result<Store> Ternary::eval(Arg &&arg) const
         }
         else
         {
-            return err::error<err::Kind::OP_TERNARY_BAD_CONDITION>(*this, value);
+            return error<err::Kind::OP_TERNARY_BAD_CONDITION>(*this, value);
         }
     });
 
     if (!result)
     {
-        return err::error(std::move(result).error());
+        return error(std::move(result).error());
     }
 
     return result ?
         arg(*result ? d_true : d_false) :
-        err::error(std::move(result).error());
+        error(std::move(result).error());
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Ternary &ternary)
 {
     return os << "if #" << ternary.d_cond << " then #" << ternary.d_true << " else #" << ternary.d_false;
+}
+
+
+inline Extension::Extension(std::string_view name, Id funid, std::vector<Id> &&args)
+    : d_name(name)
+    , d_fun(funid)
+    , d_args(std::move(args))
+{
+}
+
+inline Id Extension::fun() const
+{
+    return d_fun;
+}
+
+inline std::string_view Extension::name() const
+{
+    return d_name;
+}
+
+template<typename To>
+void Extension::refers(To &&to) const
+{
+    for (const auto id : d_args)
+    {
+        to(id);
+    }
+}
+
+template<typename Store, typename Fun>
+Result<Store> Extension::eval(Fun &&fun) const
+{
+    return fun(d_fun, d_args.begin(), d_args.end());
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Extension &ext)
+{
+    os << "@" << ext.d_name << " (";
+    for (auto it = ext.d_args.begin(); it != ext.d_args.end(); ++it)
+    {
+        os << "#" << *it << (std::next(it) == ext.d_args.end() ? "" : ", ");
+    }
+    return os << ")";
 }
 
 
@@ -417,6 +495,17 @@ template<> struct hash<pmql::op::Ternary>
     {
         size_t seed = pmql::op::OpTraits<pmql::op::Ternary>::type::unique();
         ternary.refers([&seed] (auto ref) mutable { seed = pmql::op::hash(seed, ref); });
+        return seed;
+    }
+};
+
+template<> struct hash<pmql::op::Extension>
+{
+    size_t operator()(const pmql::op::Extension &ext) const noexcept
+    {
+        size_t seed = pmql::op::OpTraits<pmql::op::Extension>::type::unique();
+        seed = pmql::op::hash(seed, ext.fun());
+        ext.refers([&seed] (auto ref) mutable { seed = pmql::op::hash(seed, ref); });
         return seed;
     }
 };

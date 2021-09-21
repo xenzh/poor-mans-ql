@@ -1,5 +1,6 @@
 #include "../pmql/expression.h"
 #include "../pmql/store.h"
+#include "../pmql/functions.h"
 
 #include <gtest/gtest.h>
 
@@ -22,7 +23,7 @@ using Value = pmql::Variant<Name, int, bool>;
 /// * conditions
 /// * null handling
 /// * streamability, evaluation log.
-TEST(Example, ExpressionShowcase)
+TEST(Showcase, Expression)
 {
     using namespace pmql;
 
@@ -76,4 +77,56 @@ TEST(Example, ExpressionShowcase)
 
     std::cout << "-- Result with a=-20, b=13: " << result << "\n\n";
     expr->log(std::cout << "-- Log with a=-20, b=13:\n", context) << "\n";
+}
+
+// avail(<null>, a, b)
+// * Extension function pipeline
+// * Avail() builtin
+TEST(Showcase, Extensions)
+{
+    auto builder = pmql::builder<Value>(pmql::ext::builtin());
+    {
+        auto a = *builder.constant(pmql::null {});
+        auto b = *builder.var("b");
+        auto c = *builder.var("c");
+
+        auto result = builder.fun("avail", a, b, c);
+        ASSERT_TRUE(result) << result.error();
+    }
+
+    auto expr = std::move(builder)();
+    ASSERT_TRUE(expr) <<expr.error();
+
+    auto context = expr->context<Value>();
+
+    auto &b = context("b")->get();
+    auto &c = context("c")->get();
+
+    // avail(null, null, 42)
+    {
+        b = pmql::null {};
+        c = 42;
+
+        auto result = (*expr)(context);
+        ASSERT_TRUE(result) << result.error();
+        result.value()([] (const auto &value)
+        {
+            ASSERT_EQ(42, value);
+        });
+    }
+
+    // avail(null, 21, 42)
+    {
+        b = 21;
+        c = 42;
+
+        auto result = (*expr)(context);
+        ASSERT_TRUE(result) << result.error();
+        result.value()([] (const auto &value)
+        {
+            ASSERT_EQ(21, value);
+        });
+    }
+
+    expr->log(std::cout << "-- Log:\n", context) << "\n";
 }

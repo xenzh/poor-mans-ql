@@ -56,7 +56,7 @@ public:
 template<typename Store, typename Substitute>
 class Context
 {
-    template<typename St> friend class Expression;
+    template<typename St, typename... Fs> friend class Expression;
 
     template<typename St, typename Sub>
     friend std::ostream &operator<<(std::ostream &, const Context<St, Sub> &);
@@ -152,7 +152,7 @@ Result<Store> Substitution<Substitute>::eval() const
 {
     if (!d_substitute)
     {
-        return err::error<err::Kind::EXPR_BAD_SUBST>(name());
+        return error<err::Kind::EXPR_BAD_SUBST>(name());
     }
 
     return (*d_substitute)([] (const auto &value) { return Store {value}; });
@@ -187,7 +187,7 @@ Context<Store, Substitute>::Context(const op::List &ops)
 
     for (const auto &op : ops)
     {
-        d_results.emplace_back(err::error<err::Kind::EXPR_NOT_READY>());
+        d_results.emplace_back(error<err::Kind::EXPR_NOT_READY>());
 
         std::visit(
             [this, &current] (const auto &op) mutable
@@ -272,7 +272,7 @@ Result<typename Context<Store, Substitute>::ref> Context<Store, Substitute>::ope
     auto it = find(name);
     if (it == d_substitutions.end())
     {
-        return err::error<err::Kind::CONTEXT_BAD_VARIABLE>(name);
+        return error<err::Kind::CONTEXT_BAD_VARIABLE>(name);
     }
 
     return std::ref(*it);
@@ -285,7 +285,7 @@ Result<typename Context<Store, Substitute>::cref> Context<Store, Substitute>::op
     auto it = find(name);
     if (it == d_substitutions.end())
     {
-        return err::error<err::Kind::CONTEXT_BAD_VARIABLE>(name);
+        return error<err::Kind::CONTEXT_BAD_VARIABLE>(name);
     }
 
     return std::cref(*it);

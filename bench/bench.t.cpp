@@ -34,7 +34,7 @@ void passcheck(benchmark::State &state, const Expr &expr, Ctx &context)
 
 void params(benchmark::internal::Benchmark *settings)
 {
-    settings->Range(10000, 10000);
+    settings->Range(100000, 100000);
     settings->Unit(benchmark::kMillisecond);
 }
 

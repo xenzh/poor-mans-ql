@@ -91,7 +91,7 @@ PmqlStdOpList
 #undef PmqlStdOp
 
 
-using Any = detail::expand_t<std::variant, detail::AsOp, Const, Var, Ternary>;
+using Any = detail::expand_t<std::variant, detail::AsOp, Const, Var, Ternary, Extension>;
 using List = std::vector<Any>;
 
 

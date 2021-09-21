@@ -9,7 +9,7 @@ This library allows to build and evaluate formula expressions based on std-like 
 - [x] Flow control: `if` operator.
 - [x] Value nullability.
 - [x] Step-by-step evaluation log.
-- [ ] External function support (i.e. avail()).
+- [x] External function support (i.e. avail()).
 - [ ] String serialization.
 - [ ] Evaluation caching / partial invalidation based on variable substitutions.
 
@@ -17,12 +17,13 @@ This library allows to build and evaluate formula expressions based on std-like 
 
 - [ ] Proper unit tests.
 - [ ] More detailed benchmarks.
+- [ ] Interface comments.
 
 ## Build
 
 ```sh
 mkdir build && cd build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 ninja
 ```
 
@@ -42,11 +43,11 @@ template<> struct Name<idouble> { static constexpr std::string_view value = "dou
 using Value = pmql::Variant<Name, int, double>;
 
 
-pmql::Result<Value> test()
+pmql::Result<void> test()
 {
     // Build an expression : (a + 42) / b
 
-    pmql::Builder<Value> builder;
+    auto builder = pmql::builder<Value>();
     {
         auto a    = *builder.var("a");
         auto b    = *builder.var("b");
@@ -59,7 +60,7 @@ pmql::Result<Value> test()
     auto result = std::move(builder)();
     if (!result)
     {
-        return result.error();
+        return pmql::error(result.error());
     }
 
     auto expr = *std::move(result);
@@ -72,7 +73,17 @@ pmql::Result<Value> test()
 
     a = 11.2;
     b = 99;
-    return expr(context);
+    auto evaluated = expr(context);
+
+    if (!evaluated)
+    {
+        return pmql::error(evaluated.error());
+    }
+
+    evaluated.value()([] (const auto &value)
+    {
+        std::cout << "(a + b) / 42 [with a=11.2, b=99] = " << value << std::endl;
+    });
 }
 ```
 
@@ -80,31 +91,35 @@ See [these showcase unit tests](./test/example.t.cpp) for more features.
 
 ## Performance
 
-This version is more of a proof of concept, and benchmarks do not look too inspiring:
+This version is more of a proof of concept, and benchmarks do not look too inspiring (100k rows, Release):
 
 ```
-Running ./build/bench/pmql_bench
+Running ./bench/pmql_bench
 Run on (12 X 2592.01 MHz CPU s)
 CPU Caches:
   L1 Data 32 KiB (x6)
   L1 Instruction 32 KiB (x6)
   L2 Unified 256 KiB (x6)
   L3 Unified 12288 KiB (x1)
-Load Average: 0.05, 0.06, 0.06
------------------------------------------------------------------------------------------
-Benchmark                                               Time             CPU   Iterations
------------------------------------------------------------------------------------------
-SingleConst_Native/10000                            0.059 ms        0.059 ms        11486
-SingleConst_Pmql<SingleInt>/10000                    2.59 ms         2.59 ms          266
-SingleConst_Pmql<VariantInt>/10000                   3.37 ms         3.37 ms          209
-SingleConst_Pmql<VariantIntDouble>/10000             3.65 ms         3.65 ms          203
-VarPlusConstFixed_Native/10000                      0.059 ms        0.059 ms        11815
-VarPlusConstFixed_Pmql<SingleInt>/10000              7.38 ms         7.38 ms           94
-VarPlusConstFixed_Pmql<VariantInt>/10000             11.6 ms         11.6 ms           65
-VarPlusConstFixed_Pmql<VariantIntDouble>/10000       11.5 ms         11.5 ms           61
-VarPlusConstParam_Native/10000                      0.061 ms        0.061 ms        11254
-VarPlusConstParam_Pmql<SingleInt>/10000              8.07 ms         8.07 ms           91
-VarPlusConstParam_Pmql<VariantInt>/10000             11.7 ms         11.7 ms           60
-VarPlusConstParam_Pmql<VariantIntDouble>/10000       11.8 ms         11.8 ms           59
+Load Average: 0.62, 0.51, 0.36
+------------------------------------------------------------------------------------------
+Benchmark                                                Time             CPU   Iterations
+------------------------------------------------------------------------------------------
+SingleConst_Native/100000                            0.024 ms        0.024 ms        27924
+SingleConst_Pmql<SingleInt>/100000                   0.722 ms        0.722 ms          959
+SingleConst_Pmql<VariantInt>/100000                  0.810 ms        0.810 ms          866
+SingleConst_Pmql<VariantIntDouble>/100000             1.07 ms         1.07 ms          653
+VarPlusConstFixed_Native/100000                      0.024 ms        0.024 ms        27947
+VarPlusConstFixed_Pmql<SingleInt>/100000              1.89 ms         1.89 ms          362
+VarPlusConstFixed_Pmql<VariantInt>/100000             2.35 ms         2.35 ms          293
+VarPlusConstFixed_Pmql<VariantIntDouble>/100000       3.15 ms         3.15 ms          222
+VarPlusConstParam_Native/100000                      0.025 ms        0.025 ms        28387
+VarPlusConstParam_Pmql<SingleInt>/100000              1.95 ms         1.95 ms          362
+VarPlusConstParam_Pmql<VariantInt>/100000             2.41 ms         2.41 ms          292
+VarPlusConstParam_Pmql<VariantIntDouble>/100000       3.20 ms         3.20 ms          219
+AvgOfThree_Native/100000                             0.031 ms        0.031 ms        22855
+AvgOfThree_Pmql<SingleDouble>/100000                  7.04 ms         7.04 ms           99
+AvgOfThree_Pmql<VariantDouble>/100000                 7.61 ms         7.61 ms           91
+AvgOfThree_Pmql<VariantIntDouble>/100000              7.72 ms         7.72 ms           87
 ```
 

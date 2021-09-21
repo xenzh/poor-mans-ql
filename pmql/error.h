@@ -26,6 +26,8 @@ namespace err {
     ErrorKind(CONTEXT_BAD_VARIABLE    ) \
     ErrorKind(EXPR_NOT_READY          ) \
     ErrorKind(EXPR_BAD_SUBST          ) \
+    ErrorKind(EXPR_BAD_FUNCTION       ) \
+    ErrorKind(EXPR_BAD_FUNCTION_ID    ) \
 
 
 #define ErrorKind(E) E,
@@ -245,6 +247,27 @@ template<> struct Details<Kind::EXPR_BAD_SUBST>
     }
 };
 
+template<> struct Details<Kind::EXPR_BAD_FUNCTION>
+{
+    std::string_view name;
+
+    void operator()(std::ostream &os) const
+    {
+        os << "Unknown extension function requested: " << name;
+    }
+};
+
+template<> struct Details<Kind::EXPR_BAD_FUNCTION_ID>
+{
+    size_t id;
+    size_t max;
+
+    void operator()(std::ostream &os) const
+    {
+        os << "Unknown extension function id requested: " << id << "/" << max;
+    }
+};
+
 
 #define ErrorKind(E) , Kind::E
 using Error = ErrorTemplate<Kind, Details ErrorKinds>;
@@ -256,29 +279,26 @@ template<Kind K> using kind_t = typename Error::template kind_t<K>;
 template<Kind K> inline constexpr kind_t<K> kind;
 
 
-template<typename V> using Result = tl::expected<V, Error>;
-
-
-template<Kind K, typename... Args>
-tl::unexpected<Error> error(Args &&...args)
-{
-    return tl::unexpected<Error> {Error {kind<K>, std::forward<Args>(args)...}};
-}
-
-template<typename E>
-tl::unexpected<Error> error(E &&err)
-{
-    return tl::unexpected<Error> {std::forward<E>(err)};
-}
-
-
 #undef ErroKinds
 
 
 } // namespace err
 
 
-template<typename V> using Result = err::Result<V>;
+template<typename V> using Result = tl::expected<V, err::Error>;
+
+
+template<err::Kind K, typename... Args>
+tl::unexpected<err::Error> error(Args &&...args)
+{
+    return tl::unexpected<err::Error> {err::Error {err::kind<K>, std::forward<Args>(args)...}};
+}
+
+template<typename E>
+tl::unexpected<err::Error> error(E &&err)
+{
+    return tl::unexpected<err::Error> {std::forward<E>(err)};
+}
 
 
 } // namespace pmql
