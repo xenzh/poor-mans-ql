@@ -29,6 +29,7 @@ namespace err {
     ErrorKind(EXPR_BAD_SUBST          ) \
     ErrorKind(EXPR_BAD_FUNCTION       ) \
     ErrorKind(EXPR_BAD_FUNCTION_ID    ) \
+    ErrorKind(SERIAL_BAD_TOKEN        ) \
 
 
 /// Generated enum that can identify any defined error.
@@ -270,6 +271,30 @@ template<> struct Details<Kind::EXPR_BAD_FUNCTION_ID>
     void operator()(std::ostream &os) const
     {
         os << "Unknown extension function id requested: " << id << "/" << max;
+    }
+};
+
+template<> struct Details<Kind::SERIAL_BAD_TOKEN>
+{
+    std::string_view entity;
+    std::string token;
+    std::string cause;
+
+    template<typename... Cause>
+    Details(std::string_view entity, std::string_view token, Cause &&...cause)
+        : entity(entity)
+        , token(token)
+        , cause(format(std::forward<Cause>(cause)...))
+    {
+    }
+
+    void operator()(std::ostream &os) const
+    {
+        os << "Failed to load entity " << entity << " from \"" << token << "\"";
+        if (!cause.empty())
+        {
+            os << ", cause: " << cause;
+        }
     }
 };
 

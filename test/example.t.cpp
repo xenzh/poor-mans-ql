@@ -130,3 +130,24 @@ TEST(Showcase, Extensions)
 
     expr->log(std::cout << "-- Log:\n", context) << "\n";
 }
+
+TEST(Showcase, Serialization)
+{
+    auto builder = pmql::builder<Value>(pmql::ext::builtin());
+    {
+        auto a  = *builder.constant(pmql::null {});
+        auto b  = *builder.var("b");
+        auto c  = *builder.var("name space");
+        auto ab = *builder.op<std::plus>(a, b);
+
+        auto nn = *builder.branch(a, b, c);
+        builder.fun("avail", a, ab, nn);
+    }
+
+    auto result = std::move(builder)();
+    ASSERT_TRUE(result.has_value()) << result;
+    auto expr = *std::move(result);
+
+    auto stored = pmql::store(expr);
+    std::cout << "Serialized expression:\n" << stored << "\n";
+}

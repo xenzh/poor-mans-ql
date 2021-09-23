@@ -190,12 +190,6 @@ private:
     /// @param constants list of constants.
     Expression(const ext::Pool<Funs...> &exts, op::List &&ops, std::vector<Store> &&constants);
 
-    /// Writes human-readable expression contents into an output stream.
-    /// @param os output stream.
-    /// @param current root operation identifier.
-    /// @return modified output stream.
-    std::ostream &format(std::ostream &os, op::Id current) const;
-
     /// Evaluates an operation and writes results to the context.
     /// @tparam Substitute type that can set and store variable value (see Substitute contract).
     /// @param id operation identifier to evaluate.
@@ -265,8 +259,8 @@ Result<Builder<Store, Funs...>> builder(
 
 
 /// Serializes expression into a string.
-template<typename Store>
-std::string store(const Expression<Store> &expression)
+template<typename Store, typename... Funs>
+Result<std::string> store(const Expression<Store, Funs...> &expression)
 {
     return serial::store(expression.operations(), expression.constants());
 }
@@ -274,7 +268,7 @@ std::string store(const Expression<Store> &expression)
 
 /// Loads expression from a string.
 template<typename Store, typename... Funs>
-Result<Expression<Store>> load(std::string_view stored, const ext::Pool<Funs...> &extensions = ext::none)
+Result<Expression<Store, Funs...>> load(std::string_view stored, const ext::Pool<Funs...> &extensions = ext::none)
 {
     return serial::load<Store>(stored)
         .and_then([] (serial::Ingredients<Store> &&ingredients)
@@ -615,87 +609,6 @@ Expression<Store, Funs...>::Expression(const ext::Pool<Funs...> &exts, op::List 
 }
 
 template<typename Store, typename... Funs>
-std::ostream &Expression<Store, Funs...>::format(std::ostream &os, op::Id current) const
-{
-    std::visit(
-        [this, &os] (const auto &op) mutable
-        {
-            using Op = std::decay_t<decltype(op)>;
-
-            if constexpr (std::is_same_v<Op, op::Const>)
-            {
-                op::Id subst;
-                op.refers([&subst] (op::Id id) mutable { subst = id; });
-                os << d_const[subst];
-            }
-
-            else if constexpr (std::is_same_v<Op, op::Var>)
-            {
-                os << "$" << op.name();
-            }
-
-            else
-            {
-                using Tr = typename op::OpTraits<Op>::type;
-
-                if constexpr (Tr::max_arity == 1)
-                {
-                    os << Tr::sign << "(";
-                    op.refers([this, &os] (op::Id ref) mutable { format(os, ref); });
-                    os << ")";
-                }
-                else if constexpr (Tr::max_arity == 2)
-                {
-                    os << "(";
-                    bool first = true;
-                    op.refers([this, &os, &first] (op::Id ref) mutable
-                    {
-                        if (first)
-                        {
-                            format(os, ref);
-                            first = false;
-                        }
-                        else
-                        {
-                            format(os << " " << Tr::sign << " ", ref);
-                        }
-                    });
-                    os << ")";
-                }
-                else
-                {
-                    if constexpr (std::is_same_v<Op, op::Extension>)
-                    {
-                        os << op.name() << "(";
-                    }
-                    else
-                    {
-                        os << Tr::name << "(";
-                    }
-
-                    bool first = true;
-                    op.refers([this, &os, &first] (op::Id ref) mutable
-                    {
-                        if (first)
-                        {
-                            format(os, ref);
-                            first = false;
-                        }
-                        else
-                        {
-                            format(os << ", ", ref);
-                        }
-                    });
-                    os << ")";
-                }
-            }
-        },
-        d_ops[current]);
-
-    return os;
-}
-
-template<typename Store, typename... Funs>
 template<typename Substitute>
 void Expression<Store, Funs...>::eval(op::Id id, Context<Store, Substitute> &context) const
 {
@@ -798,7 +711,17 @@ std::ostream &Expression<Store, Funs...>::log(std::ostream &os, const Context<St
 template<typename Store, typename... Funs>
 std::ostream &operator<<(std::ostream &os, const Expression<Store, Funs...> &expression)
 {
-    return expression.format(os, expression.d_ops.size() - 1);
+    store(expression)
+        .map([&os] (const std::string &stored) mutable
+        {
+            os << stored;
+        })
+        .map_error([&os] (const err::Error &e) mutable
+        {
+            os << e;
+        });
+
+    return os;
 }
 
 

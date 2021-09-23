@@ -115,8 +115,8 @@ public:
     /// @tparam Others function type pack to add to the collection.
     /// @param other other collection of functions to add to this one.
     /// @return a new collection that contains functions from both this and other collections.
-    //template<typename... Others>
-    //Pool<Funs..., Others...> operator+(Pool<Others...> &&other) &&;
+    template<typename... Others>
+    Pool<Funs..., Others...> operator+(const Pool<Others...> &other) const;
 
     /// Returns the start of supported functions range.
     const_iterator begin() const;
@@ -186,13 +186,13 @@ Pool<Funs...>::Pool(Fs &&...functions)
 {
 }
 
-//template<typename... Funs>
-//template<typename... Others>
-//Pool<Funs..., Others...> Pool<Funs...>::operator+(Pool<Others...> &&other) &&
-//{
-//    d_functions = std::tuple_cat(std::move(d_functions), std::move(other.d_functions));
-//    d_byname = index(std::index_sequence_for<Funs..., Others...> {});
-//}
+template<typename... Funs>
+template<typename... Others>
+Pool<Funs..., Others...> Pool<Funs...>::operator+(const Pool<Others...> &other) const
+{
+    auto functions = std::tuple_cat(d_functions, other.d_functions);
+    return Pool<Funs..., Others...>(std::move(functions));
+}
 
 template<typename... Funs>
 typename Pool<Funs...>::const_iterator Pool<Funs...>::begin() const

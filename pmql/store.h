@@ -1,6 +1,7 @@
 #pragma once
 
 #include "null.h"
+#include "error.h"
 
 #include <variant>
 #include <ostream>
@@ -43,6 +44,16 @@ public:
     /// Initializes container with a non-null stored value from an rvalue reference.
     /// @param value value reference.
     explicit Single(V &&value);
+
+    /// Serialize value to an output stream.
+    /// @param os output stream.
+    /// @return serialization status.
+    Result<void> store(std::ostream &os) const;
+
+    /// Deserialize value from string.
+    /// @param stored serialized value representation.
+    /// @return loaded value container or an error.
+    static Result<Single<Name, V>> load(std::string_view stored);
 
     /// Updates stored value. Part of the Substitute contract.
     /// @tparam T type, convertible to V.
@@ -116,6 +127,16 @@ public:
     template<typename T, typename... Args>
     explicit Variant(std::in_place_type_t<T>, Args &&...args);
 
+    /// Serialize value to an output stream.
+    /// @param os output stream.
+    /// @return serialization status.
+    Result<void> store(std::ostream &os) const;
+
+    /// Deserialize value from string.
+    /// @param stored serialized value representation.
+    /// @return loaded value container or an error.
+    static Result<Variant<Name, Vs...>> load(std::string_view stored);
+
     /// Updates stored value. Part of the Substitute contract.
     /// @tparam V type, convertible to any of the stored types.
     /// @param value new value to store.
@@ -142,7 +163,7 @@ template<typename T>
 {
     if constexpr (std::is_same_v<T, null>)
     {
-        return "<null>";
+        return "null";
     }
     else
     {
@@ -162,6 +183,52 @@ Single<Name, V>::Single(V &&value)
     : d_null(false)
     , d_value(std::move(value))
 {
+}
+
+template<template<typename> typename Name, typename V>
+Result<void> Single<Name, V>::store(std::ostream &os) const
+{
+    if (!d_null)
+    {
+        os << name<V>() << "(" << d_value << ")";
+    }
+    else
+    {
+        os << null {};
+    }
+
+    return {};
+}
+
+template<template<typename> typename Name, typename V>
+/* static */ Result<Single<Name, V>> Single<Name, V>::load(std::string_view stored)
+{
+    const auto bopen  = stored.find("(");
+    const auto bclose = stored.find(")");
+
+    if (bopen == std::string_view::npos || bclose == std::string_view::npos)
+    {
+        if (stored == name<null>())
+        {
+            return Single<Name, V> {};
+        }
+
+        return error<err::Kind::SERIAL_BAD_TOKEN>("Single", stored, "bad brackets");
+    }
+
+    const auto ty = stored.substr(0, bopen);
+    if (ty != name<V>())
+    {
+        return error<err::Kind::SERIAL_BAD_TOKEN>(
+            "Single",
+            stored,
+            "bad type, expected: ", name<V>(), " , actual: ", ty);
+    }
+
+    // TODO:
+    // given int(42), how do we parse 42?
+    // what if it is a custom type?
+    // maybe istream>> to default-constructed object?.., pass value via operator=()?
 }
 
 template<template<typename> typename Name, typename V>
@@ -227,6 +294,30 @@ template<template<typename> typename Name, typename... Vs>
 template<typename T, typename... Args>
 Variant<Name, Vs...>::Variant(std::in_place_type_t<T> type, Args &&...args)
     : d_value {type, std::forward<Args>(args)...}
+{
+}
+
+template<template<typename> typename Name, typename... Vs>
+Result<void> Variant<Name, Vs...>::store(std::ostream &os) const
+{
+    std::visit(
+        [&os] (const auto &value) mutable
+        {
+            using T = std::decay_t<decltype(value)>;
+
+            os << name<T>();
+            if constexpr (!std::is_same_v<T, null>)
+            {
+                os << "(" << value << ")";
+            }
+        },
+        d_value);
+
+    return {};
+}
+
+template<template<typename> typename Name, typename... Vs>
+/* static */ Result<Variant<Name, Vs...>> Variant<Name, Vs...>::load(std::string_view stored)
 {
 }
 

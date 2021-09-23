@@ -17,9 +17,6 @@ This library allows to build and evaluate formula expressions based on std-like 
 
 - [ ] Proper unit tests.
 - [ ] More detailed benchmarks.
-- [ ] Interface comments.
-- [ ] Fix `ext::Pool::operator+()`.
-- [ ] Operation caching inside `Builder` can lead to ops cycle errors.
 
 ## Build
 
