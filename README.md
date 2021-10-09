@@ -1,5 +1,7 @@
 # Poor man's query language
 
+![example workflow](https://github.com/xenzh/poor-mans-ql/actions/workflows/cmake.yml/badge.svg)
+
 This library allows to build and evaluate formula expressions based on std-like functional objects. Type system is data-driven: library borrows allowed types from object storage, provided by the client, evaluation result types are inferred from variable substitutions.
 
 ## Features
