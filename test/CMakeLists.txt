@@ -3,7 +3,11 @@ enable_testing()
 file(GLOB sources CONFIGURE_DEPENDS "*.cpp")
 add_executable(pmql_test ${sources})
 
-target_link_libraries(pmql_test gtest_main)
+target_link_libraries(
+    pmql_test
+    PUBLIC pmql
+    PRIVATE gmock
+    PRIVATE gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(pmql_test)
