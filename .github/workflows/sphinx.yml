@@ -48,11 +48,10 @@ jobs:
       run: |
           cd ${{github.workspace}}/gh-pages
           cp -r ${{github.workspace}}/master/build/docs/sphinx/* .
-          UPDATES=$(git status --porcelain)
-          echo "::set-output name=status::$RESULT"
+          echo "::set-output name=updates::$(git status --porcelain)"
 
     - name: Commit and push gh-pages
-      if: ${{steps.porcelain.outputs.result != null}}
+      if: ${{steps.porcelain.outputs.updates != null}}
       run: |
           cd ${{github.workspace}}/gh-pages
           git config user.name github-actions
