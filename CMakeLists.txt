@@ -28,10 +28,9 @@ FetchContent_Declare(
 )
 
 set(EXPECTED_BUILD_TESTS OFF)
-
 FetchContent_MakeAvailable(googletest tl-expected)
 
-find_package(benchmark REQUIRED)
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 add_subdirectory(pmql)
 add_subdirectory(docs)

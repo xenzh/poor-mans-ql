@@ -150,7 +150,7 @@ inline const Pool<> none;
 /// Constructs an extension function pool from a list of function objects.
 /// @see Pool
 /// @tparam Funs pack of extension function types.
-/// @param function extension functions to include to the pool.
+/// @param functions extension functions to include to the pool.
 /// @return extension pool instance.
 template<typename... Funs>
 Pool<Funs...> pool(Funs &&...functions)

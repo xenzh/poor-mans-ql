@@ -328,7 +328,7 @@ Result<Store> eval(const Fn<> &op, Args &&...args)
 /// @see boost::hash_combine
 /// @tparam Ts pack of types to hash and combine.
 /// @param seed hashing seed.
-/// @param value values to hash and combine.
+/// @param values values to hash and combine.
 /// @return combined value hash, can be used as the seed.
 template <typename... Ts>
 size_t hash(size_t seed, const Ts &...values)

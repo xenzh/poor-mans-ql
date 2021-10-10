@@ -21,11 +21,10 @@ jobs:
           sudo apt-get install -y \
             clang-11 \
             ninja-build \
-            breathe-doc \
+            doxygen \
             python3-sphinx \
             python3-sphinx-rtd-theme \
-            doxygen \
-            graphviz \
+            python3-breathe \
             libbenchmark-dev \
 
     - name: Configure CMake

@@ -193,7 +193,7 @@ Builder<Store, Funs...> builder(const ext::Pool<Funs...> &extensions = ext::none
 /// @tparam Store type that can store calculation results.
 /// @tparam Funs pack of extension function types.
 /// @param consts list of constants.
-/// @param ordered list of operations.
+/// @param ops ordered list of operations.
 /// @param extensions collection of extension functions.
 /// @return builder instance or an error, if provided expression ingredients are invalid.
 template<typename Store, typename... Funs>
