@@ -6,5 +6,4 @@ target_link_libraries(
     pmql_bench
     PUBLIC pmql
     PRIVATE benchmark::benchmark
-    PRIVATE benchmark::benchmark_main
 )

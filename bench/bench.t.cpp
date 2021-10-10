@@ -360,3 +360,6 @@ BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled3, VariantIntDouble)->Apply(params);
 
 
 } // namespace pmql
+
+
+BENCHMARK_MAIN();
