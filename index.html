@@ -2662,7 +2662,7 @@
 <dt id="_CPPv4I0EN4pmql2op7ResultsE">
 <span id="_CPPv3I0EN4pmql2op7ResultsE"></span><span id="_CPPv2I0EN4pmql2op7ResultsE"></span><span class="target" id="classpmql_1_1op_1_1Results"></span>template&lt;typename <code class="descname">Store</code>&gt;<br /><em class="property">class </em><code class="descname">Results</code><a class="headerlink" href="#_CPPv4I0EN4pmql2op7ResultsE" title="Permalink to this definition">¶</a><br /></dt>
 <dd><em>#include &lt;results.h&gt;</em><p>Storage for intermediate operation evaluation results. Contains extra information that indicates whether a result is up-to-date or must be re-evaluated. The idea behind caching is to save time when invoking the same expression on a sequence of variables. <a class="reference internal" href="#classpmql_1_1op_1_1Results"><span class="std std-ref">Results</span></a> are:<ul class="simple">
-<li>Marked as up-to-date on assignment (if caching is enabled).</li>
+<li>Marked as up-to-date on assignment (if validity tracking is enabled).</li>
 <li>Invalidated when a variable substitution changes. <dl class="docutils">
 <dt><strong>Template Parameters</strong></dt>
 <dd><ul class="breatheparameterlist first last">
