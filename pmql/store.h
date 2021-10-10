@@ -225,10 +225,8 @@ template<template<typename> typename Name, typename V>
             "bad type, expected: ", name<V>(), " , actual: ", ty);
     }
 
-    // TODO:
-    // given int(42), how do we parse 42?
-    // what if it is a custom type?
-    // maybe istream>> to default-constructed object?.., pass value via operator=()?
+    // TODO: interpret the type and parse the value token accordingly.
+    return error<err::Kind::EXPR_NOT_READY>();
 }
 
 template<template<typename> typename Name, typename V>
@@ -319,6 +317,10 @@ Result<void> Variant<Name, Vs...>::store(std::ostream &os) const
 template<template<typename> typename Name, typename... Vs>
 /* static */ Result<Variant<Name, Vs...>> Variant<Name, Vs...>::load(std::string_view stored)
 {
+    (void) stored;
+    return error<err::Kind::EXPR_NOT_READY>();
+
+    // TODO: implement value parsing.
 }
 
 template<template<typename> typename Name, typename... Vs>

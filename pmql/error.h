@@ -29,6 +29,7 @@ namespace err {
     ErrorKind(EXPR_BAD_SUBST          ) \
     ErrorKind(EXPR_BAD_FUNCTION       ) \
     ErrorKind(EXPR_BAD_FUNCTION_ID    ) \
+    ErrorKind(SERIAL_UNKNOWN_TOKEN    ) \
     ErrorKind(SERIAL_BAD_TOKEN        ) \
 
 
@@ -271,6 +272,30 @@ template<> struct Details<Kind::EXPR_BAD_FUNCTION_ID>
     void operator()(std::ostream &os) const
     {
         os << "Unknown extension function id requested: " << id << "/" << max;
+    }
+};
+
+template<> struct Details<Kind::SERIAL_UNKNOWN_TOKEN>
+{
+    std::string stored;
+    size_t pos;
+    std::string cause;
+
+    template<typename... Cause>
+    Details(std::string_view stored, size_t pos, Cause &&...cause)
+        : stored(stored)
+        , pos(pos)
+        , cause(format(std::forward<Cause>(cause)...))
+    {
+    }
+
+    void operator()(std::ostream &os) const
+    {
+        std::string_view sv = stored;
+
+        os << "Failed to recognize a token at \"" << sv.substr(pos) << "\"; "
+            "cause: " << cause << "; "
+            "full expression: \"" << sv << "\"" ;
     }
 };
 

@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
 
-set(CMAKE_CXX_COMPILER "/usr/bin/clang++-11")
-
 project(pmql)
 
 set(CMAKE_CXX_STANDARD 17)

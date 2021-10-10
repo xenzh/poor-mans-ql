@@ -2,6 +2,7 @@
 
 #include "error.h"
 #include "ops.h"
+#include "results.h"
 
 #include <optional>
 #include <vector>
@@ -62,13 +63,20 @@ public:
 ///     }
 /// };
 /// @endcode
+/// @tparam Store type that can store a calculation result (see Store contract).
 /// @tparam Substitute object that can set and store variable value.
-template<typename Substitute>
+template<typename Store, typename Substitute>
 class Substitution : public Variable
 {
     /// Streaming support.
-    template<typename Sub>
-    friend std::ostream &operator<<(std::ostream &, const Substitution<Sub> &);
+    template<typename St, typename Sub>
+    friend std::ostream &operator<<(std::ostream &, const Substitution<St, Sub> &);
+
+    /// Variable index in parent context.
+    const size_t d_index;
+
+    /// Reference to parent context's evaluation results storage (for invalidation).
+    op::Results<Store> &d_results;
 
     /// Optional substitution object.
     std::optional<Substitute> d_substitute;
@@ -76,8 +84,16 @@ class Substitution : public Variable
 public:
     /// Construct substitution proxy instance.
     /// @param id host Expression's operation identifier.
+    /// @param name variable name.
+    /// @param index associated variant index from parent context.
+    /// @param results reference to expression results cache.
     /// @param sub substitution object.
-    Substitution(op::Id id, std::string_view name, std::optional<Substitute> &&sub = std::nullopt);
+    Substitution(
+        op::Id id,
+        std::string_view name,
+        size_t index,
+        op::Results<Store> &results,
+        std::optional<Substitute> &&sub = std::nullopt);
 
     /// Converts to true if substitution object has been set.
     operator bool() const;
@@ -90,9 +106,7 @@ public:
     Substitution &operator=(Sub &&substitute);
 
     /// Reads variable substitution value and stores it in provided Store type.
-    /// @param Store type that can store a calculation result (see Store contract).
     /// @return stored variable value or an error (if the value has not been set).
-    template<typename Store>
     Result<Store> eval() const;
 };
 
@@ -113,7 +127,7 @@ class Context
     friend std::ostream &operator<<(std::ostream &, const Context<St, Sub> &);
 
     /// Client-facing variable substitution proxy type.
-    using Subst  = Substitution<Substitute>;
+    using Subst  = Substitution<Store, Substitute>;
 
     /// List of variable substitutions.
     using Substs = std::vector<Subst>;
@@ -125,7 +139,7 @@ class Context
     std::unordered_map<std::string_view, op::Id> d_byname;
 
     /// Expression's step-by-step operation evaluation results.
-    std::vector<Result<Store>> d_results;
+    op::Results<Store> d_results;
 
 public:
     /// Defines modifiable substitutions iterator type.
@@ -141,7 +155,9 @@ public:
     using cref = std::reference_wrapper<const Subst>;
 
     /// Construct context instance from operation list.
-    explicit Context(const op::List &ops);
+    /// @param ops valid list of operations.
+    /// @param cache if set to true, operation result caching is enabled.
+    explicit Context(const op::List &ops, bool cache = true);
 
     /// Converts to true if all variable substitutions are set.
     operator bool() const;
@@ -219,33 +235,38 @@ inline std::ostream &operator<<(std::ostream &os, const Variable &var)
 }
 
 
-template<typename Substitute>
-Substitution<Substitute>::Substitution(
+template<typename Store, typename Substitute>
+Substitution<Store, Substitute>::Substitution(
     op::Id id,
     std::string_view name,
+    size_t index,
+    op::Results<Store> &results,
     std::optional<Substitute> &&sub /*= std::nullopt*/)
     : Variable(id, name)
+    , d_index(index)
+    , d_results(results)
     , d_substitute(std::move(sub))
 {
 }
 
-template<typename Substitute>
-Substitution<Substitute>::operator bool() const
+template<typename Store, typename Substitute>
+Substitution<Store, Substitute>::operator bool() const
 {
     return bool(d_substitute);
 }
 
-template<typename Substitute>
+template<typename Store, typename Substitute>
 template<typename Sub>
-Substitution<Substitute> &Substitution<Substitute>::operator=(Sub &&substitute)
+Substitution<Store, Substitute> &Substitution<Store, Substitute>::operator=(Sub &&substitute)
 {
     d_substitute = std::forward<Sub>(substitute);
+    d_results.invalidate(d_index);
+
     return *this;
 }
 
-template<typename Substitute>
-template<typename Store>
-Result<Store> Substitution<Substitute>::eval() const
+template<typename Store, typename Substitute>
+Result<Store> Substitution<Store, Substitute>::eval() const
 {
     if (!d_substitute)
     {
@@ -255,8 +276,8 @@ Result<Store> Substitution<Substitute>::eval() const
     return (*d_substitute)([] (const auto &value) { return Store {value}; });
 }
 
-template<typename Substitute>
-std::ostream &operator<<(std::ostream &os, const Substitution<Substitute> &subst)
+template<typename Store, typename Substitute>
+std::ostream &operator<<(std::ostream &os, const Substitution<Store, Substitute> &subst)
 {
     if (!subst.d_substitute)
     {
@@ -277,24 +298,23 @@ std::ostream &operator<<(std::ostream &os, const Substitution<Substitute> &subst
 
 
 template<typename Store, typename Substitute>
-Context<Store, Substitute>::Context(const op::List &ops)
+Context<Store, Substitute>::Context(const op::List &ops, bool cache /*= true */)
+    : d_results(ops, cache)
 {
-    d_results.reserve(ops.size());
     op::Id current = 0;
+    size_t var = 0;
 
     for (const auto &op : ops)
     {
-        d_results.emplace_back(error<err::Kind::EXPR_NOT_READY>());
-
         std::visit(
-            [this, &current] (const auto &op) mutable
+            [this, &current, &var] (const auto &op) mutable
             {
                 using Op = std::decay_t<decltype(op)>;
 
                 if constexpr (std::is_same_v<Op, op::Var>)
                 {
                     d_byname[op.name()] = d_substitutions.size();
-                    d_substitutions.emplace_back(current, op.name());
+                    d_substitutions.emplace_back(current, op.name(), var++, d_results);
                 }
             },
             op);

@@ -39,6 +39,25 @@ void params(benchmark::internal::Benchmark *settings)
 }
 
 
+template<typename Store>
+void avgOfThreeNegated(Builder<Store> &builder)
+{
+    const auto a   = *builder.var("a");
+    const auto b   = *builder.var("b");
+    const auto c   = *builder.var("c");
+
+    const auto na  = *builder.template op<std::negate>(a);
+    const auto nb  = *builder.template op<std::negate>(b);
+    const auto nc  = *builder.template op<std::negate>(c);
+
+    const auto ab  = *builder.template op<std::plus>(na, nb);
+    const auto abc = *builder.template op<std::plus>(ab, nc);
+    const auto cnt = *builder.constant(3.0);
+
+    builder.template op<std::divides>(abc, cnt);
+}
+
+
 } // unnamed namespace
 
 
@@ -189,16 +208,7 @@ template<typename Store>
 void AvgOfThree_Pmql(benchmark::State &state)
 {
     Builder<Store> builder;
-    {
-        const auto a   = *builder.var("a");
-        const auto b   = *builder.var("b");
-        const auto c   = *builder.var("c");
-        const auto ab  = *builder.template op<std::plus>( a, b);
-        const auto abc = *builder.template op<std::plus>(ab, c);
-        const auto cnt = *builder.constant(3.0);
-
-        builder.template op<std::divides>(abc, cnt);
-    }
+    avgOfThreeNegated(builder);
 
     auto expr = *std::move(builder)();
     auto context = expr.template context<Store>();
@@ -229,6 +239,124 @@ BENCHMARK(AvgOfThree_Native)->Apply(params);
 BENCHMARK_TEMPLATE(AvgOfThree_Pmql, SingleDouble    )->Apply(params);
 BENCHMARK_TEMPLATE(AvgOfThree_Pmql, VariantDouble   )->Apply(params);
 BENCHMARK_TEMPLATE(AvgOfThree_Pmql, VariantIntDouble)->Apply(params);
+
+
+template<typename Store>
+void AvgOfThree_Cache_Disabled(benchmark::State &state)
+{
+    Builder<Store> builder;
+    avgOfThreeNegated(builder);
+
+    auto expr = *std::move(builder)();
+    auto context = expr.template context<Store>(/* cache */ false);
+
+    auto &a = context("a")->get();
+    auto &b = context("b")->get();
+    auto &c = context("c")->get();
+
+    for (auto _ : state)
+    {
+        a = 22.2;
+        b = 42.2;
+        c = 82.2;
+
+        for (int i = 0; i < state.range(0); ++i)
+        {
+            benchmark::DoNotOptimize(expr(context));
+        }
+    }
+}
+
+BENCHMARK_TEMPLATE(AvgOfThree_Cache_Disabled, VariantIntDouble)->Apply(params);
+
+
+template<typename Store>
+void AvgOfThree_Cache_Enabled1(benchmark::State &state)
+{
+    Builder<Store> builder;
+    avgOfThreeNegated(builder);
+
+    auto expr = *std::move(builder)();
+    auto context = expr.template context<Store>(/* cache */ true);
+
+    auto &a = context("a")->get();
+    auto &b = context("b")->get();
+    auto &c = context("c")->get();
+
+    for (auto _ : state)
+    {
+        a = 22.2;
+
+        for (int i = 0; i < state.range(0); ++i)
+        {
+            b = 42.2;
+            c = 82.2;
+
+            benchmark::DoNotOptimize(expr(context));
+        }
+    }
+}
+
+BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled1, VariantIntDouble)->Apply(params);
+
+
+template<typename Store>
+void AvgOfThree_Cache_Enabled2(benchmark::State &state)
+{
+    Builder<Store> builder;
+    avgOfThreeNegated(builder);
+
+    auto expr = *std::move(builder)();
+    auto context = expr.template context<Store>(/* cache */ true);
+
+    auto &a = context("a")->get();
+    auto &b = context("b")->get();
+    auto &c = context("c")->get();
+
+    for (auto _ : state)
+    {
+        a = 22.2;
+        b = 42.2;
+
+        for (int i = 0; i < state.range(0); ++i)
+        {
+            c = 82.2;
+
+            benchmark::DoNotOptimize(expr(context));
+        }
+    }
+}
+
+BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled2, VariantIntDouble)->Apply(params);
+
+
+template<typename Store>
+void AvgOfThree_Cache_Enabled3(benchmark::State &state)
+{
+    Builder<Store> builder;
+    avgOfThreeNegated(builder);
+
+    auto expr = *std::move(builder)();
+    auto context = expr.template context<Store>(/* cache */ true);
+
+    auto &a = context("a")->get();
+    auto &b = context("b")->get();
+    auto &c = context("c")->get();
+
+    for (auto _ : state)
+    {
+        a = 22.2;
+        b = 42.2;
+        c = 82.2;
+
+        for (int i = 0; i < state.range(0); ++i)
+        {
+            benchmark::DoNotOptimize(expr(context));
+        }
+    }
+}
+
+BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled3, VariantIntDouble)->Apply(params);
 
 
 } // namespace pmql

@@ -256,7 +256,7 @@ template<> struct OpTraits<Ternary>
     struct type
     {
         static uintptr_t unique() { return reinterpret_cast<uintptr_t>(&unique); };
-        static constexpr std::string_view name = "if";
+        static constexpr std::string_view name = "?";
         static constexpr size_t max_arity = 3;
         using op = Ternary;
     };
@@ -370,7 +370,7 @@ Result<Store> Const::eval(Arg &&arg) const
 
 inline std::ostream &operator<<(std::ostream &os, const Const &var)
 {
-    return os << "const (_" << var.d_sub << ")";
+    return os << "const(_" << var.d_sub << ")";
 }
 
 
@@ -387,7 +387,7 @@ inline std::string_view Var::name() const
 
 inline std::ostream &operator<<(std::ostream &os, const Var &var)
 {
-    return os << var.d_name << " ($" << var.id() << ")";
+    return os << var.d_name << "($" << var.id() << ")";
 }
 
 
@@ -525,7 +525,7 @@ Result<Store> Ternary::eval(Arg &&arg) const
 
 inline std::ostream &operator<<(std::ostream &os, const Ternary &ternary)
 {
-    return os << "if #" << ternary.d_cond << " then #" << ternary.d_true << " else #" << ternary.d_false;
+    return os << "if(#" << ternary.d_cond << " ? #" << ternary.d_true << " : #" << ternary.d_false << ")";
 }
 
 
@@ -563,7 +563,7 @@ Result<Store> Extension::eval(Fun &&fun) const
 
 inline std::ostream &operator<<(std::ostream &os, const Extension &ext)
 {
-    os << "@" << ext.d_name << " (";
+    os << "@" << ext.d_name << "(";
     for (auto it = ext.d_args.begin(); it != ext.d_args.end(); ++it)
     {
         os << "#" << *it << (std::next(it) == ext.d_args.end() ? "" : ", ");

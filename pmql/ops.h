@@ -7,6 +7,7 @@
 #include <string_view>
 #include <variant>
 #include <vector>
+#include <unordered_set>
 
 
 /// Macro list of supported operations
@@ -104,6 +105,48 @@ template<> struct Traits<Ns::Fn> \
 };
 PmqlStdOpList
 #undef PmqlStdOp
+
+
+/// Collection of all builtin operation signs.
+#define PmqlStdOp(Ns, Fn, Sign, Arity) Traits<Ns::Fn>::sign,
+inline const std::unordered_set<std::string_view> Signs { PmqlStdOpList };
+#undef PmqlStdOp
+
+
+/// Invokes a callback with with default-constructed Traits object for operation type matching provided sign.
+/// If the sign is not recognized, the callback is invoked with std::nullopt_t instance.
+/// @tparam Callback callable, T(Traits<Fn>) or T(std::nullopt);
+/// @param source operation sign.
+/// @param pos position to start looking for operation sign from. Modified to past-the-end of the sign if found.
+/// @param callback callback used to pass constructed operation object to.
+/// @return whatever the callback returns.
+template<typename Callback>
+auto identify(std::string_view source, size_t &pos, Callback &&callback) -> decltype(auto)
+{
+    size_t signmax = 0;
+#define PmqlStdOp(Ns, Name, Sign, Arity) \
+    signmax = std::max(signmax, Traits<Ns::Name>::sign.size());
+    PmqlStdOpList
+#undef PmqlStdOp
+
+    if (pos < source.size())
+    {
+        source = source.substr(pos);
+        source.remove_prefix(std::min(source.find_first_not_of(" "), source.size()));
+        source = source.substr(0, signmax);
+    }
+
+#define PmqlStdOp(Ns, Name, Sign, Arity) \
+    if (auto start = source.find(#Sign); start != std::string_view::npos) \
+    { \
+        pos = start + Traits<Ns::Name>::sign.size(); \
+        return callback(Traits<Ns::Name> {}); \
+    }
+    if (false) {} PmqlStdOpList
+#undef PmqlStdOp
+
+    return callback(std::nullopt);
+}
 
 
 /// Defines variant that can hold any operation descriptor.

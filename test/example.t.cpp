@@ -7,11 +7,17 @@
 #include <iostream>
 
 
+namespace {
+
+
 template<typename T> struct Name;
 template<> struct Name<int > { static constexpr std::string_view value = "int" ; };
 template<> struct Name<bool> { static constexpr std::string_view value = "bool"; };
 
 using Value = pmql::Variant<Name, int, bool>;
+
+
+} // unnamed namespace
 
 
 /// ((a + b) > 0) ? (a + b - 42) : (a + b + null)
@@ -131,23 +137,25 @@ TEST(Showcase, Extensions)
     expr->log(std::cout << "-- Log:\n", context) << "\n";
 }
 
-TEST(Showcase, Serialization)
-{
-    auto builder = pmql::builder<Value>(pmql::ext::builtin());
-    {
-        auto a  = *builder.constant(pmql::null {});
-        auto b  = *builder.var("b");
-        auto c  = *builder.var("name space");
-        auto ab = *builder.op<std::plus>(a, b);
+//TEST(Showcase, Serialization)
+//{
+//    auto builder = pmql::builder<Value>(pmql::ext::builtin());
+//    {
+//        auto a  = *builder.constant(pmql::null {});
+//        auto b  = *builder.var("b");
+//        auto c  = *builder.var("name space");
+//        auto d  = *builder.constant(42);
+//        auto nb = *builder.op<std::negate>(b);
+//        auto ab = *builder.op<std::plus>(a, nb);
 
-        auto nn = *builder.branch(a, b, c);
-        builder.fun("avail", a, ab, nn);
-    }
+//        auto nn = *builder.branch(a, b, c);
+//        builder.fun("avail", a, ab, nn, d);
+//    }
 
-    auto result = std::move(builder)();
-    ASSERT_TRUE(result.has_value()) << result;
-    auto expr = *std::move(result);
+//    auto result = std::move(builder)();
+//    ASSERT_TRUE(result.has_value()) << result;
+//    auto expr = *std::move(result);
 
-    auto stored = pmql::store(expr);
-    std::cout << "Serialized expression:\n" << stored << "\n";
-}
+//    const auto stored = expr.ingredients().store();
+//    std::cout << "\nSerialized expression:\n\n" << *stored << "\n\n";
+//}
