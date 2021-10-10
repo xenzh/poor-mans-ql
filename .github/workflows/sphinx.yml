@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        path: master
     
     - name: Install dependencies
       run: |
@@ -30,18 +32,20 @@ jobs:
         CC: /usr/bin/clang-11
         CXX: /usr/bin/clang++-11
         CMAKE_GENERATOR: Ninja
-      run: cmake -B ${{github.workspace}}/build
+      run: cmake -B ${{github.workspace}}/master/build
 
     - name: Build documentation
-      run: ninja -C ${{github.workspace}}/build sphinx
+      run: ninja -C ${{github.workspace}}/master/build sphinx
 
     - uses: actions/checkout@v2
       with:
         ref: gh-pages
+        path: gh-pages
       
     - name: Commit and push gh-pages
       run: |
-          mv ${{github.workspace}}/build/docs/sphinx/* ${{github.workspace}}
+          cd ${{github.workspace}}/gh-pages
+          mv ${{github.workspace}}/master/build/docs/sphinx/* .
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .
