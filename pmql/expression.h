@@ -67,7 +67,7 @@ public:
     /// Evaluate the expression using given context.
     /// @tparam Substitute type that can set and store variable value (see Substitute contract).
     /// @param context evaluation context.
-    /// @param expression result or an error.
+    /// @return expression result or an error.
     template<typename Substitute>
     Result<Store> operator()(Context<Store, Substitute> &context) const;
 

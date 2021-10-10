@@ -48,7 +48,7 @@ public:
 
     /// Construct operation result container.
     /// @param ops valid list of operations.
-    /// @param cached if set to true, result validity tracking is enabled.
+    /// @param cache if set to true, result validity tracking is enabled.
     explicit Results(const List &ops, bool cache = true);
 
     /// Construct begin iterator.
@@ -116,7 +116,7 @@ namespace bitmap {
 
 
 /// Mark all operation that depend on a particular variable for given operation list.
-/// @param valid operation list.
+/// @param ops valid operation list.
 /// @param op identifier of the operation to process recursively.
 /// @param var variable's operation identifier.
 /// @param bitmap operation bitmap to populate (must be pre-filled with 0s).

@@ -34,5 +34,6 @@ FetchContent_MakeAvailable(googletest tl-expected)
 find_package(benchmark REQUIRED)
 
 add_subdirectory(pmql)
+add_subdirectory(docs)
 add_subdirectory(test)
 add_subdirectory(bench)

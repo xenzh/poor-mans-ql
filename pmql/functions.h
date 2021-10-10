@@ -24,7 +24,7 @@ struct Avail
     /// @tparam Arg callable, Result<Store>(op::Id).
     /// @tparam It forward iterator type over op::Id values.
     /// @param arg argument value getter.
-    /// @param start argument identifier range start.
+    /// @param begin argument identifier range start.
     /// @param end argument identifier range end.
     /// @return function's calculation result or an error.
     template<typename Store, typename Arg, typename It>

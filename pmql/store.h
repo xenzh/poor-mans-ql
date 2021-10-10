@@ -123,9 +123,10 @@ public:
     /// An inplace ctor for any allowed type.
     /// @tparam T an allowed type to store.
     /// @tparam Args T constructor argument type pack.
+    /// @param type stored type marker.
     /// @param args T constructor arguments.
     template<typename T, typename... Args>
-    explicit Variant(std::in_place_type_t<T>, Args &&...args);
+    explicit Variant(std::in_place_type_t<T> type, Args &&...args);
 
     /// Serialize value to an output stream.
     /// @param os output stream.

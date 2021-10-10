@@ -26,8 +26,8 @@ public:
     template<Kind> struct kind_t {};
 
     /// Construct error container instance.
-    /// @param K error identifier.
-    /// @param Args error descriptor initializers pack.
+    /// @tparam K error identifier.
+    /// @tparam Args error descriptor initializers pack.
     /// @param args error description initializers.
     template<Kind K, typename... Args>
     ErrorTemplate(kind_t<K>, Args &&...args)

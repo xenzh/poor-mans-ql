@@ -163,19 +163,19 @@ public:
     operator bool() const;
 
     /// Returns the start of variable substitution range.
-    /// @eturn modifiable substitution range iterator.
+    /// @return modifiable substitution range iterator.
     iterator begin();
 
     /// Returns the end of variable substitution range.
-    /// @eturn modifiable substitution range iterator.
+    /// @return modifiable substitution range iterator.
     iterator end();
 
     /// Returns the start of variable substitution range.
-    /// @eturn const variable range iterator.
+    /// @return const variable range iterator.
     const_iterator begin() const;
 
     /// Returns the end of variable substitution range.
-    /// @eturn const variable range iterator.
+    /// @return const variable range iterator.
     const_iterator end() const;
 
     /// Looks a variable substitution up by variable name.
