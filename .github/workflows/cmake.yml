@@ -26,7 +26,6 @@ jobs:
             python3-sphinx-rtd-theme \
             doxygen \
             graphviz \
-            libexpected-dev \
             libbenchmark-dev \
 
     - name: Configure CMake
