@@ -1,0 +1,48 @@
+name: Sphinx
+
+on:
+  workflow_run:
+    workflows: [CMake]
+    branches: [master]
+    types:
+    - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install dependencies
+      run: |
+          sudo apt-get install -y \
+            clang-11 \
+            ninja-build \
+            doxygen \
+            python3-sphinx \
+            python3-sphinx-rtd-theme \
+            python3-breathe \
+            libbenchmark-dev \
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build
+
+    - name: Build documentation
+      run: ninja sphinx
+
+    - uses: actions/checkout@v2
+      with:
+        ref: gh-pages
+
+    - name: Move generated artifacts
+      run: mv ${{github.workspace}}/build/docs/sphinx/* ${{github.workspace}}
+      
+    - name: Commit and push gh-pages
+      run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Update documentation"
+          git push
+      
