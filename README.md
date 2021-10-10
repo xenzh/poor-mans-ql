@@ -1,6 +1,6 @@
 # Poor man's query language
 
-![example workflow](https://github.com/xenzh/poor-mans-ql/actions/workflows/cmake.yml/badge.svg)
+[![example workflow](https://github.com/xenzh/poor-mans-ql/actions/workflows/cmake.yml/badge.svg)](https://github.com/xenzh/poor-mans-ql/actions/workflows/cmake.yml)
 
 This library allows to build and evaluate formula expressions based on std-like functional objects. Type system is data-driven: library borrows allowed types from object storage, provided by the client, evaluation result types are inferred from variable substitutions.
 
@@ -12,8 +12,8 @@ This library allows to build and evaluate formula expressions based on std-like 
 - [x] Value nullability.
 - [x] Step-by-step evaluation log.
 - [x] External function support (i.e. `avail()`).
-- [ ] String serialization.
 - [ ] Evaluation caching / partial invalidation based on variable substitutions.
+- [ ] String serialization.
 
 ### Code TODOs:
 
@@ -26,6 +26,9 @@ This library allows to build and evaluate formula expressions based on std-like 
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 ninja
+
+./test/pmql_test
+./bench/pmql_bench
 ```
 
 ## Example
@@ -38,8 +41,8 @@ ninja
 // Define storage for calculated values.
 
 template<typename T> struct Name;
-template<> struct Name<int    > { static constexpr std::string_view value = "int"   ; };
-template<> struct Name<idouble> { static constexpr std::string_view value = "double"; };
+template<> struct Name<int    > { [[maybe_unused]] static constexpr std::string_view value = "int"   ; };
+template<> struct Name<idouble> { [[maybe_unused]] static constexpr std::string_view value = "double"; };
 
 using Value = pmql::Variant<Name, int, double>;
 
