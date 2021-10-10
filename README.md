@@ -2,6 +2,7 @@
 
 [![cmake](https://github.com/xenzh/poor-mans-ql/actions/workflows/cmake.yml/badge.svg)](https://github.com/xenzh/poor-mans-ql/actions/workflows/cmake.yml)
 [![sphinx](https://github.com/xenzh/poor-mans-ql/actions/workflows/sphinx.yml/badge.svg)](https://github.com/xenzh/poor-mans-ql/actions/workflows/sphinx.yml)
+[![pages](https://img.shields.io/badge/sphinx-documentation-informational)](https://xenzh.github.io/poor-mans-ql/)
 
 This library allows to build and evaluate formula expressions based on std-like functional objects. Type system is data-driven: library borrows allowed types from object storage, provided by the client, evaluation result types are inferred from variable substitutions.
 
