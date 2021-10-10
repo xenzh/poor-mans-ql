@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v2
     
     - name: Install dependencies
-      run: sudo apt-get install -y clang-11 ninja-build libexpected-dev libgtest-dev libgmock-dev libbenchmark-dev
+      run: sudo apt-get install -y clang-11 ninja-build libexpected-dev libbenchmark-dev
 
     - name: Configure CMake
       env:
