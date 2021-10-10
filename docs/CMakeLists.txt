@@ -22,7 +22,7 @@ add_custom_command(
     VERBATIM
 )
 
-add_custom_target(doxygen ALL DEPENDS ${doxygen_index_file})
+add_custom_target(doxygen DEPENDS ${doxygen_index_file})
 
 
 find_package(Sphinx REQUIRED)
@@ -46,4 +46,4 @@ add_custom_command(
     COMMENT "Generating documentation with Sphinx"
 )
 
-add_custom_target(sphinx ALL DEPENDS ${sphinx_index_file})
+add_custom_target(sphinx DEPENDS ${sphinx_index_file})
