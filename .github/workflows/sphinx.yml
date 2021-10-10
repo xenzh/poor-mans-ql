@@ -34,7 +34,7 @@ jobs:
         CMAKE_GENERATOR: Ninja
       run: cmake -S ${{github.workspace}}/master -B ${{github.workspace}}/master/build
 
-    - name: Build documentation
+    - name: Generate documentation
       run: ninja -C ${{github.workspace}}/master/build sphinx
 
     - uses: actions/checkout@v2
