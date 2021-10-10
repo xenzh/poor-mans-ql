@@ -26,6 +26,10 @@ jobs:
             libbenchmark-dev \
 
     - name: Configure CMake
+      env:
+        CC: /usr/bin/clang-11
+        CXX: /usr/bin/clang++-11
+        CMAKE_GENERATOR: Ninja
       run: cmake -B ${{github.workspace}}/build
 
     - name: Build documentation
