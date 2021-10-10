@@ -11,7 +11,7 @@ namespace pmql::op {
 /// Contains extra information that indicates whether a result is up-to-date or must be re-evaluated.
 /// The idea behind caching is to save time when invoking the same expression on a sequence of variables.
 /// Results are:
-/// * Marked as up-to-date on assignment (if caching is enabled).
+/// * Marked as up-to-date on assignment (if validity tracking is enabled).
 /// * Invalidated when a variable substitution changes.
 /// @tparam Store type that can store a calculation result (see Store contract).
 template<typename Store>
