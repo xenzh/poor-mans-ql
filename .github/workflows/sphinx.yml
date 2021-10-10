@@ -42,10 +42,19 @@ jobs:
         ref: gh-pages
         path: gh-pages
 
-    - name: Commit and push gh-pages
+    - name: Move and check for updates
+      id: porcelain
+      shell: bash
       run: |
           cd ${{github.workspace}}/gh-pages
           cp -r ${{github.workspace}}/master/build/docs/sphinx/* .
+          UPDATES=$(git status --porcelain)
+          echo "::set-output name=status::$RESULT"
+
+    - name: Commit and push gh-pages
+      if: ${{steps.porcelain.outputs.result != null}}
+      run: |
+          cd ${{github.workspace}}/gh-pages
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .
