@@ -26,6 +26,7 @@ This library allows to build and evaluate formula expressions based on std-like 
 
 ### Code TODOs:
 
+- [ ] Try out PEGTL for parsing.
 - [ ] Proper unit tests.
 - [ ] More detailed benchmarks.
 
@@ -114,29 +115,30 @@ CPU Caches:
   L1 Instruction 32 KiB (x6)
   L2 Unified 256 KiB (x6)
   L3 Unified 12288 KiB (x1)
-Load Average: 0.35, 0.34, 0.29
+Load Average: 0.80, 0.29, 0.10
 ---------------------------------------------------------------------------------------------
 Benchmark                                                   Time             CPU   Iterations
 ---------------------------------------------------------------------------------------------
-SingleConst_Native/100000                               0.513 ms        0.513 ms         1324
-SingleConst_Pmql<SingleInt>/100000                       7.87 ms         7.87 ms           88
-SingleConst_Pmql<VariantInt>/100000                      7.88 ms         7.88 ms           91
-SingleConst_Pmql<VariantIntDouble>/100000                7.69 ms         7.69 ms           89
-VarPlusConstFixed_Native/100000                         0.519 ms        0.519 ms         1336
-VarPlusConstFixed_Pmql<SingleInt>/100000                 7.69 ms         7.69 ms           90
-VarPlusConstFixed_Pmql<VariantInt>/100000                7.68 ms         7.68 ms           90
-VarPlusConstFixed_Pmql<VariantIntDouble>/100000          7.75 ms         7.75 ms           90
-VarPlusConstParam_Native/100000                         0.557 ms        0.557 ms         1286
-VarPlusConstParam_Pmql<SingleInt>/100000                 58.3 ms         58.3 ms           12
-VarPlusConstParam_Pmql<VariantInt>/100000                89.0 ms         89.0 ms            8
-VarPlusConstParam_Pmql<VariantIntDouble>/100000          90.1 ms         90.1 ms            8
-AvgOfThree_Native/100000                                0.617 ms        0.617 ms         1125
-AvgOfThree_Pmql<SingleDouble>/100000                      222 ms          222 ms            3
-AvgOfThree_Pmql<VariantDouble>/100000                     354 ms          354 ms            2
-AvgOfThree_Pmql<VariantIntDouble>/100000                  352 ms          352 ms            2
-AvgOfThree_Cache_Disabled<VariantIntDouble>/100000        348 ms          348 ms            2
-AvgOfThree_Cache_Enabled1<VariantIntDouble>/100000        285 ms          285 ms            3
-AvgOfThree_Cache_Enabled2<VariantIntDouble>/100000        163 ms          163 ms            4
-AvgOfThree_Cache_Enabled3<VariantIntDouble>/100000       7.77 ms         7.77 ms           89
+SingleConst_Native/100000                               0.024 ms        0.024 ms        28117
+SingleConst_Pmql<SingleInt>/100000                      0.357 ms        0.357 ms         1922
+SingleConst_Pmql<VariantInt>/100000                     0.356 ms        0.356 ms         1950
+SingleConst_Pmql<VariantIntDouble>/100000               0.355 ms        0.355 ms         1941
+VarPlusConstFixed_Native/100000                         0.025 ms        0.025 ms        28187
+VarPlusConstFixed_Pmql<SingleInt>/100000                0.353 ms        0.353 ms         1949
+VarPlusConstFixed_Pmql<VariantInt>/100000               0.355 ms        0.355 ms         1941
+VarPlusConstFixed_Pmql<VariantIntDouble>/100000         0.356 ms        0.356 ms         1974
+VarPlusConstParam_Native/100000                         0.025 ms        0.025 ms        28486
+VarPlusConstParam_Pmql<SingleInt>/100000                 2.24 ms         2.24 ms          307
+VarPlusConstParam_Pmql<VariantInt>/100000                2.63 ms         2.63 ms          266
+VarPlusConstParam_Pmql<VariantIntDouble>/100000          2.95 ms         2.95 ms          235
+AvgOfThree_Native/100000                                0.031 ms        0.031 ms        22430
+AvgOfThree_Pmql<SingleDouble>/100000                     10.2 ms         10.2 ms           68
+AvgOfThree_Pmql<VariantDouble>/100000                    11.4 ms         11.4 ms           62
+AvgOfThree_Pmql<VariantIntDouble>/100000                 11.3 ms         11.3 ms           62
+AvgOfThree_Cache_Disabled<VariantIntDouble>/100000       11.2 ms         11.2 ms           62
+AvgOfThree_Cache_Enabled0<VariantIntDouble>/100000       11.3 ms         11.3 ms           59
+AvgOfThree_Cache_Enabled1<VariantIntDouble>/100000       8.96 ms         8.96 ms           79
+AvgOfThree_Cache_Enabled2<VariantIntDouble>/100000       5.21 ms         5.21 ms          137
+AvgOfThree_Cache_Enabled3<VariantIntDouble>/100000      0.347 ms        0.347 ms         2047
 ```
 

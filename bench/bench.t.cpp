@@ -256,18 +256,48 @@ void AvgOfThree_Cache_Disabled(benchmark::State &state)
 
     for (auto _ : state)
     {
-        a = 22.2;
-        b = 42.2;
-        c = 82.2;
-
         for (int i = 0; i < state.range(0); ++i)
         {
+            a = 22.2;
+            b = 42.2;
+            c = 82.2;
+
             benchmark::DoNotOptimize(expr(context));
         }
     }
 }
 
 BENCHMARK_TEMPLATE(AvgOfThree_Cache_Disabled, VariantIntDouble)->Apply(params);
+
+
+template<typename Store>
+void AvgOfThree_Cache_Enabled0(benchmark::State &state)
+{
+    Builder<Store> builder;
+    avgOfThreeNegated(builder);
+
+    auto expr = *std::move(builder)();
+    auto context = expr.template context<Store>(/* cache */ true);
+
+    auto &a = context("a")->get();
+    auto &b = context("b")->get();
+    auto &c = context("c")->get();
+
+    for (auto _ : state)
+    {
+        for (int i = 0; i < state.range(0); ++i)
+        {
+            a = 22.2;
+            b = 42.2;
+            c = 82.2;
+
+            benchmark::DoNotOptimize(expr(context));
+        }
+    }
+}
+
+BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled0, VariantIntDouble)->Apply(params);
+
 
 
 template<typename Store>
