@@ -1,5 +1,7 @@
 #pragma once
 
+#include "unwrap.h"
+
 #include <variant>
 #include <string>
 #include <sstream>
@@ -21,6 +23,12 @@ class ErrorTemplate
     /// Error description object.
     std::variant<Details<Kinds>...> d_details;
 
+    /// File name.
+    std::string_view d_file;
+
+    /// Line number.
+    size_t d_line = 0;
+
 public:
     /// Defines marker type for holding error identifiers.
     template<Kind> struct kind_t {};
@@ -34,6 +42,18 @@ public:
         : d_kind {K}
         , d_details {Details<K> {std::forward<Args>(args)...}}
     {
+    }
+
+    /// Specify where the error was noticed first.
+    /// @param file file name.
+    /// @param line line number.
+    void at(std::string_view file, size_t line)
+    {
+        if (d_file.empty())
+        {
+            d_file = file;
+            d_line = line;
+        }
     }
 
     /// Return stored error identifier.
@@ -68,8 +88,13 @@ public:
     std::ostream &describe(std::ostream &os) const
     {
         return std::visit(
-            [&os] (const auto &detail) mutable -> std::ostream &
+            [this, &os] (const auto &detail) mutable -> std::ostream &
             {
+                if (!d_file.empty())
+                {
+                    os << d_file << ":" << d_line << " ";
+                }
+
                 return os << detail;
             },
             d_details);
@@ -82,6 +107,11 @@ public:
         std::ostringstream ostr;
         describe(ostr);
         return std::move(ostr).str();
+    }
+
+    [[noreturn]] void raise() const
+    {
+        throw std::runtime_error(description());
     }
 };
 

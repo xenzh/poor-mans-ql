@@ -40,8 +40,10 @@ void params(benchmark::internal::Benchmark *settings)
 
 
 template<typename Store>
-void avgOfThreeNegated(Builder<Store> &builder)
+auto avgOfThreeNegated() -> Result<typename Builder<Store>::value_type>
 {
+    Builder<Store> builder;
+
     const auto a   = *builder.var("a");
     const auto b   = *builder.var("b");
     const auto c   = *builder.var("c");
@@ -55,6 +57,8 @@ void avgOfThreeNegated(Builder<Store> &builder)
     const auto cnt = *builder.constant(3.0);
 
     builder.template op<std::divides>(abc, cnt);
+
+    return std::move(builder)();
 }
 
 
@@ -76,9 +80,9 @@ template<typename Store>
 void SingleConst_Pmql(benchmark::State &state)
 {
     Builder<Store> builder;
-    builder.constant(42);
+    TryThrow(builder.constant(42));
 
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(std::move(builder)());
     auto context = expr.template context<Store>();
 
     passcheck(state, expr, context);
@@ -115,12 +119,12 @@ void VarPlusConstFixed_Pmql(benchmark::State &state)
 {
     Builder<Store> builder;
     {
-        auto a = *builder.var("a");
-        auto b = *builder.constant(42);
-        builder.template op<std::plus>(a, b);
+        auto a = TryThrow(builder.var("a"));
+        auto b = TryThrow(builder.constant(42));
+        TryThrow(builder.template op<std::plus>(a, b));
     }
 
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(std::move(builder)());
     auto context = expr.template context<Store>();
     context("a")->get() = 42;
 
@@ -159,12 +163,12 @@ void VarPlusConstParam_Pmql(benchmark::State &state)
 {
     Builder<Store> builder;
     {
-        auto a = *builder.var("a");
-        auto b = *builder.constant(42);
-        builder.template op<std::plus>(a, b);
+        auto a = TryThrow(builder.var("a"));
+        auto b = TryThrow(builder.constant(42));
+        TryThrow(builder.template op<std::plus>(a, b));
     }
 
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(std::move(builder)());
     auto context = expr.template context<Store>();
 
     auto &var = *context.find("a");
@@ -207,10 +211,7 @@ void AvgOfThree_Native(benchmark::State &state)
 template<typename Store>
 void AvgOfThree_Pmql(benchmark::State &state)
 {
-    Builder<Store> builder;
-    avgOfThreeNegated(builder);
-
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(avgOfThreeNegated<Store>());
     auto context = expr.template context<Store>();
 
     auto &a = context("a")->get();
@@ -244,10 +245,7 @@ BENCHMARK_TEMPLATE(AvgOfThree_Pmql, VariantIntDouble)->Apply(params);
 template<typename Store>
 void AvgOfThree_Cache_Disabled(benchmark::State &state)
 {
-    Builder<Store> builder;
-    avgOfThreeNegated(builder);
-
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(avgOfThreeNegated<Store>());
     auto context = expr.template context<Store>(/* cache */ false);
 
     auto &a = context("a")->get();
@@ -273,10 +271,7 @@ BENCHMARK_TEMPLATE(AvgOfThree_Cache_Disabled, VariantIntDouble)->Apply(params);
 template<typename Store>
 void AvgOfThree_Cache_Enabled0(benchmark::State &state)
 {
-    Builder<Store> builder;
-    avgOfThreeNegated(builder);
-
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(avgOfThreeNegated<Store>());
     auto context = expr.template context<Store>(/* cache */ true);
 
     auto &a = context("a")->get();
@@ -303,10 +298,7 @@ BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled0, VariantIntDouble)->Apply(params);
 template<typename Store>
 void AvgOfThree_Cache_Enabled1(benchmark::State &state)
 {
-    Builder<Store> builder;
-    avgOfThreeNegated(builder);
-
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(avgOfThreeNegated<Store>());
     auto context = expr.template context<Store>(/* cache */ true);
 
     auto &a = context("a")->get();
@@ -333,10 +325,7 @@ BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled1, VariantIntDouble)->Apply(params);
 template<typename Store>
 void AvgOfThree_Cache_Enabled2(benchmark::State &state)
 {
-    Builder<Store> builder;
-    avgOfThreeNegated(builder);
-
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(avgOfThreeNegated<Store>());
     auto context = expr.template context<Store>(/* cache */ true);
 
     auto &a = context("a")->get();
@@ -363,10 +352,7 @@ BENCHMARK_TEMPLATE(AvgOfThree_Cache_Enabled2, VariantIntDouble)->Apply(params);
 template<typename Store>
 void AvgOfThree_Cache_Enabled3(benchmark::State &state)
 {
-    Builder<Store> builder;
-    avgOfThreeNegated(builder);
-
-    auto expr = *std::move(builder)();
+    auto expr = TryThrow(avgOfThreeNegated<Store>());
     auto context = expr.template context<Store>(/* cache */ true);
 
     auto &a = context("a")->get();
