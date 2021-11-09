@@ -856,6 +856,15 @@
 </dl>
 </p>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Types</p>
+<dl class="type">
+<dt id="_CPPv4IEN4pmql7BuilderI5Store4FunsE10value_typeE">
+<span id="_CPPv3IEN4pmql7BuilderI5Store4FunsE10value_typeE"></span><span id="_CPPv2IEN4pmql7BuilderI5Store4FunsE10value_typeE"></span>template&lt;&gt;<br /><span class="target" id="classpmql_1_1Builder_1a257ff61fefd924a22b22b15b2a831455"></span><em class="property">using </em><code class="descname">value_type</code> = Expression&lt;Store, Funs...&gt;<a class="headerlink" href="#_CPPv4IEN4pmql7BuilderI5Store4FunsE10value_typeE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Defines associated expression type. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric">Public Functions</p>
 <dl class="function">
 <dt id="_CPPv4N4pmql7Builder7BuilderERKN3ext4PoolIDp4FunsEE">
@@ -1958,6 +1967,26 @@
 </p>
 </dd></dl>
 
+<dl class="function">
+<dt id="_CPPv4I0EN4pmql3err6unwrapE6UnwrapINSt7decay_tI1REEERR1RNSt11string_viewE6size_t">
+<span id="_CPPv3I0EN4pmql3err6unwrapERR1RNSt11string_viewE6size_t"></span><span id="_CPPv2I0EN4pmql3err6unwrapERR1RNSt11string_viewE6size_t"></span><span class="target" id="unwrap_8h_1a741717e53a4a9d79950c9ff48a396754"></span>template&lt;typename <code class="descname">R</code>&gt;<br />Unwrap&lt;std::decay_t&lt;<a class="reference internal" href="#_CPPv4I0EN4pmql3err6unwrapE6UnwrapINSt7decay_tI1REEERR1RNSt11string_viewE6size_t" title="pmql::err::unwrap::R">R</a>&gt;&gt; <code class="descname">unwrap</code><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN4pmql3err6unwrapE6UnwrapINSt7decay_tI1REEERR1RNSt11string_viewE6size_t" title="pmql::err::unwrap::R">R</a> &amp;&amp;<em>result</em>, std::string_view <em>file</em>, size_t <em>line</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN4pmql3err6unwrapE6UnwrapINSt7decay_tI1REEERR1RNSt11string_viewE6size_t" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Factory function for <a class="reference internal" href="#structpmql_1_1err_1_1Unwrap"><span class="std std-ref">Unwrap</span></a> helper template. <dl class="docutils">
+<dt><strong>Return</strong></dt>
+<dd>Unwrapper object that holds passed result object. </dd>
+<dt><strong>Template Parameters</strong></dt>
+<dd><ul class="breatheparameterlist first last simple">
+<li><code class="docutils literal notranslate"><span class="pre">R</span></code>: result type. </li>
+</ul>
+</dd>
+<dt><strong>Parameters</strong></dt>
+<dd><ul class="breatheparameterlist first last simple">
+<li><code class="docutils literal notranslate"><span class="pre">result</span></code>: result object rvalue. </li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
 </div>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric">Variables</p>
@@ -2002,6 +2031,20 @@
 <dt><strong>Parameters</strong></dt>
 <dd><ul class="breatheparameterlist first last simple">
 <li><code class="docutils literal notranslate"><span class="pre">args</span></code>: error description initializers. </li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_CPPv4N4pmql3err13ErrorTemplate2atENSt11string_viewE6size_t">
+<span id="_CPPv3N4pmql3err13ErrorTemplate2atENSt11string_viewE6size_t"></span><span id="_CPPv2N4pmql3err13ErrorTemplate2atENSt11string_viewE6size_t"></span><span id="pmql::err::ErrorTemplate::at__std::string_view.s"></span><span class="target" id="classpmql_1_1err_1_1ErrorTemplate_1ab4203642232e5e444e393ebebf9fe80c"></span>void <code class="descname">at</code><span class="sig-paren">(</span>std::string_view <em>file</em>, size_t <em>line</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4pmql3err13ErrorTemplate2atENSt11string_viewE6size_t" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Specify where the error was noticed first. <dl class="docutils">
+<dt><strong>Parameters</strong></dt>
+<dd><ul class="breatheparameterlist first last simple">
+<li><code class="docutils literal notranslate"><span class="pre">file</span></code>: file name. </li>
+<li><code class="docutils literal notranslate"><span class="pre">line</span></code>: line number. </li>
 </ul>
 </dd>
 </dl>
@@ -2065,6 +2108,178 @@
 <dd><em>#include &lt;result.h&gt;</em><p>Defines marker type for holding error identifiers. </p>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="class">
+<dt id="_CPPv4I0EN4pmql3err6UnwrapE">
+<span id="_CPPv3I0EN4pmql3err6UnwrapE"></span><span id="_CPPv2I0EN4pmql3err6UnwrapE"></span><span class="target" id="structpmql_1_1err_1_1Unwrap"></span>template&lt;typename <code class="descname">R</code>&gt;<br /><em class="property">struct </em><code class="descname">Unwrap</code><a class="headerlink" href="#_CPPv4I0EN4pmql3err6UnwrapE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><em>#include &lt;unwrap.h&gt;</em><p>Helper template for unwrapping values from result types. Used in Try() macro. <dl class="docutils">
+<dt><strong>Template Parameters</strong></dt>
+<dd><ul class="breatheparameterlist first last simple">
+<li><code class="docutils literal notranslate"><span class="pre">R</span></code>: non-compatible result type. </li>
+</ul>
+</dd>
+</dl>
+</p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="function">
+<dt id="_CPPv4N4pmql3err6UnwrapcvbEv">
+<span id="_CPPv3N4pmql3err6UnwrapcvbEv"></span><span id="_CPPv2N4pmql3err6UnwrapcvbEv"></span><span id="pmql::err::Unwrap::castto-b-operator"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_1afd9d0d84696dbcc901d8ded68aa339b0"></span><code class="descname">operator bool</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4pmql3err6UnwrapcvbEv" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Stub implementation used to minimize compiler error output. </p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_CPPv4NO4pmql3err6UnwrapmlEv">
+<span id="_CPPv3NO4pmql3err6UnwrapmlEv"></span><span id="_CPPv2NO4pmql3err6UnwrapmlEv"></span><span id="pmql::err::Unwrap::mul-operatorO"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_1a27683cbc5025df0f33a51142c70e9945"></span>R <code class="descname">operator*</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &amp;&amp;<a class="headerlink" href="#_CPPv4NO4pmql3err6UnwrapmlEv" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Stub implementation used to minimize compiler error output. </p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_CPPv4NO4pmql3err6UnwrapclEv">
+<span id="_CPPv3NO4pmql3err6UnwrapclEv"></span><span id="_CPPv2NO4pmql3err6UnwrapclEv"></span><span id="pmql::err::Unwrap::call-operatorO"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_1aa707e8e92373429eaf6c63a9ccf222e3"></span>tl::unexpected&lt;<a class="reference internal" href="#_CPPv4N4pmql3err6Unwrap16InvalidErrorTypeE" title="pmql::err::Unwrap::InvalidErrorType">InvalidErrorType</a>&gt; <code class="descname">operator()</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &amp;&amp;<a class="headerlink" href="#_CPPv4NO4pmql3err6UnwrapclEv" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Stub implementation used to minimize compiler error output. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Members</p>
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap6resultE">
+<span id="_CPPv3N4pmql3err6Unwrap6resultE"></span><span id="_CPPv2N4pmql3err6Unwrap6resultE"></span><span id="pmql::err::Unwrap::result__R"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_1ad435df1534da0dc22563684e9d5f66e6"></span>R <code class="descname">result</code><a class="headerlink" href="#_CPPv4N4pmql3err6Unwrap6resultE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Non-result object. </p>
+</dd></dl>
+
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap4fileE">
+<span id="_CPPv3N4pmql3err6Unwrap4fileE"></span><span id="_CPPv2N4pmql3err6Unwrap4fileE"></span><span id="pmql::err::Unwrap::file__std::string_view"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_1aa321b56168d99136b989b6fc6cc085cd"></span>std::string_view <code class="descname">file</code><a class="headerlink" href="#_CPPv4N4pmql3err6Unwrap4fileE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Unwrapping location: file. </p>
+</dd></dl>
+
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap4lineE">
+<span id="_CPPv3N4pmql3err6Unwrap4lineE"></span><span id="_CPPv2N4pmql3err6Unwrap4lineE"></span><span id="pmql::err::Unwrap::line__s"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_1ad1c73ddc5c1a0c1986787249d54a4985"></span>size_t <code class="descname">line</code><a class="headerlink" href="#_CPPv4N4pmql3err6Unwrap4lineE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Unwrapping location: line. </p>
+</dd></dl>
+
+</div>
+<dl class="class">
+<dt id="_CPPv4N4pmql3err6Unwrap16InvalidErrorTypeE">
+<span id="_CPPv3N4pmql3err6Unwrap16InvalidErrorTypeE"></span><span id="_CPPv2N4pmql3err6Unwrap16InvalidErrorTypeE"></span><span id="pmql::err::Unwrap::InvalidErrorType"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_1_1InvalidErrorType"></span><em class="property">struct </em><code class="descname">InvalidErrorType</code><a class="headerlink" href="#_CPPv4N4pmql3err6Unwrap16InvalidErrorTypeE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><em>#include &lt;unwrap.h&gt;</em><p>Stub error type used to minimize compiler error output. </p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="_CPPv4I00EN4pmql3err6UnwrapIN2tl8expectedI1T1EEEEE">
+<span id="_CPPv3I00EN4pmql3err6UnwrapIN2tl8expectedI1T1EEEEE"></span><span id="_CPPv2I00EN4pmql3err6UnwrapIN2tl8expectedI1T1EEEEE"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01T_00_01E_01_4_01_4"></span>template&lt;typename <code class="descname">T</code>, typename <code class="descname">E</code>&gt;<br /><em class="property">struct </em><code class="descname">Unwrap</code>&lt;tl::expected&lt;<a class="reference internal" href="#_CPPv4I00EN4pmql3err6UnwrapIN2tl8expectedI1T1EEEEE" title="pmql::err::Unwrap&lt;tl::expected&lt;T, E&gt;&gt;::T">T</a>, <a class="reference internal" href="#_CPPv4I00EN4pmql3err6UnwrapIN2tl8expectedI1T1EEEEE" title="pmql::err::Unwrap&lt;tl::expected&lt;T, E&gt;&gt;::E">E</a>&gt;&gt;<a class="headerlink" href="#_CPPv4I00EN4pmql3err6UnwrapIN2tl8expectedI1T1EEEEE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><em>#include &lt;unwrap.h&gt;</em><p>Helper template for unwrapping values from result types. Used in Try() macro. <dl class="docutils">
+<dt><strong>Template Parameters</strong></dt>
+<dd><ul class="breatheparameterlist first last simple">
+<li><code class="docutils literal notranslate"><span class="pre">T</span></code>: success type. </li>
+<li><code class="docutils literal notranslate"><span class="pre">E</span></code>: error type. </li>
+</ul>
+</dd>
+</dl>
+</p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="function">
+<dt id="_CPPv4N4pmql3err6UnwrapcvbEv">
+<span id="_CPPv3N4pmql3err6UnwrapcvbEv"></span><span id="_CPPv2N4pmql3err6UnwrapcvbEv"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01T_00_01E_01_4_01_4_1a7b94a6a37a4c2e4e2c442f74f91553f3"></span><code class="descname">operator bool</code><span class="sig-paren">(</span><span class="sig-paren">)</span><br /></dt>
+<dd><p>Returns true if result object contains success value. </p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_CPPv4NO4pmql3err6UnwrapmlEv">
+<span id="_CPPv3NO4pmql3err6UnwrapmlEv"></span><span id="_CPPv2NO4pmql3err6UnwrapmlEv"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01T_00_01E_01_4_01_4_1aab2122eeb2657f053ad2c60864225fd4"></span>T <code class="descname">operator*</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &amp;&amp;<br /></dt>
+<dd><p>Generates an expression containing success value. </p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_CPPv4NO4pmql3err6UnwrapclEv">
+<span id="_CPPv3NO4pmql3err6UnwrapclEv"></span><span id="_CPPv2NO4pmql3err6UnwrapclEv"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01T_00_01E_01_4_01_4_1a6625ccbf6d9238d2b1c132ab32ba88f4"></span>tl::unexpected&lt;E&gt; <code class="descname">operator()</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &amp;&amp;<br /></dt>
+<dd><p>Generates an expression containing error value. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Members</p>
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap6resultE">
+<span id="_CPPv3N4pmql3err6Unwrap6resultE"></span><span id="_CPPv2N4pmql3err6Unwrap6resultE"></span><span id="pmql::err::Unwrap::result__tl::expected:T.E:"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01T_00_01E_01_4_01_4_1a64b15bea4d87d45fd73b62c3c414795e"></span>tl::expected&lt;T, E&gt; <code class="descname">result</code><br /></dt>
+<dd><p>Result object. </p>
+</dd></dl>
+
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap4fileE">
+<span id="_CPPv3N4pmql3err6Unwrap4fileE"></span><span id="_CPPv2N4pmql3err6Unwrap4fileE"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01T_00_01E_01_4_01_4_1ab0639d8f57966101b8035b775bcd345d"></span>std::string_view <code class="descname">file</code><br /></dt>
+<dd><p>Unwrapping location: file. </p>
+</dd></dl>
+
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap4lineE">
+<span id="_CPPv3N4pmql3err6Unwrap4lineE"></span><span id="_CPPv2N4pmql3err6Unwrap4lineE"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01T_00_01E_01_4_01_4_1ade22600390a0b07e7f3cd14339ab3d41"></span>size_t <code class="descname">line</code><br /></dt>
+<dd><p>Unwrapping location: line. </p>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="_CPPv4I0EN4pmql3err6UnwrapIN2tl8expectedIv1EEEEE">
+<span id="_CPPv3I0EN4pmql3err6UnwrapIN2tl8expectedIv1EEEEE"></span><span id="_CPPv2I0EN4pmql3err6UnwrapIN2tl8expectedIv1EEEEE"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01void_00_01E_01_4_01_4"></span>template&lt;typename <code class="descname">E</code>&gt;<br /><em class="property">struct </em><code class="descname">Unwrap</code>&lt;tl::expected&lt;void, <a class="reference internal" href="#_CPPv4I0EN4pmql3err6UnwrapIN2tl8expectedIv1EEEEE" title="pmql::err::Unwrap&lt;tl::expected&lt;void, E&gt;&gt;::E">E</a>&gt;&gt;<a class="headerlink" href="#_CPPv4I0EN4pmql3err6UnwrapIN2tl8expectedIv1EEEEE" title="Permalink to this definition">¶</a><br /></dt>
+<dd><em>#include &lt;unwrap.h&gt;</em><p>Helper template for unwrapping values from result types. Used in Try() macro. <dl class="docutils">
+<dt><strong>Template Parameters</strong></dt>
+<dd><ul class="breatheparameterlist first last simple">
+<li><code class="docutils literal notranslate"><span class="pre">E</span></code>: error type. </li>
+</ul>
+</dd>
+</dl>
+</p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="function">
+<dt id="_CPPv4N4pmql3err6UnwrapcvbEv">
+<span id="_CPPv3N4pmql3err6UnwrapcvbEv"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01void_00_01E_01_4_01_4_1aad674c4f02cfd748b1c58baca774c100"></span><code class="descname">operator bool</code><span class="sig-paren">(</span><span class="sig-paren">)</span><br /></dt>
+<dd><p>Returns true if result object contains success value. </p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_CPPv4NO4pmql3err6UnwrapmlEv">
+<span id="_CPPv3NO4pmql3err6UnwrapmlEv"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01void_00_01E_01_4_01_4_1a68691255eade9fead8378b881ca9c0ee"></span>void <code class="descname">operator*</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &amp;&amp;<br /></dt>
+<dd><p>Generates a void expression; When called at the end of a statement expression (GCC/clang macro extension), makes it a void expression. </p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_CPPv4NO4pmql3err6UnwrapclEv">
+<span id="_CPPv3NO4pmql3err6UnwrapclEv"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01void_00_01E_01_4_01_4_1ae1928b5127e7c21474215cac38854193"></span>tl::unexpected&lt;E&gt; <code class="descname">operator()</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &amp;&amp;<br /></dt>
+<dd><p>Generates an expression containing error value. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Members</p>
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap6resultE">
+<span id="_CPPv3N4pmql3err6Unwrap6resultE"></span><span id="_CPPv2N4pmql3err6Unwrap6resultE"></span><span id="pmql::err::Unwrap::result__tl::expected:void.E:"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01void_00_01E_01_4_01_4_1a01c8a4cbfa2bf5569edde4e29deb2428"></span>tl::expected&lt;void, E&gt; <code class="descname">result</code><br /></dt>
+<dd><p>Result object. </p>
+</dd></dl>
+
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap4fileE">
+<span id="_CPPv3N4pmql3err6Unwrap4fileE"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01void_00_01E_01_4_01_4_1a50e5515357f9b23a1dc22a3d264cf367"></span>std::string_view <code class="descname">file</code><br /></dt>
+<dd><p>Unwrapping location: file. </p>
+</dd></dl>
+
+<dl class="member">
+<dt id="_CPPv4N4pmql3err6Unwrap4lineE">
+<span id="_CPPv3N4pmql3err6Unwrap4lineE"></span><span class="target" id="structpmql_1_1err_1_1Unwrap_3_01tl_1_1expected_3_01void_00_01E_01_4_01_4_1ad5bb3be039f9c5dc596d733d6fafb0ad"></span>size_t <code class="descname">line</code><br /></dt>
+<dd><p>Unwrapping location: line. </p>
+</dd></dl>
+
+</div>
 </dd></dl>
 
 </dd></dl>
