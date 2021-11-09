@@ -63,21 +63,15 @@ pmql::Result<void> test()
 
     auto builder = pmql::builder<Value>();
     {
-        auto a    = *builder.var("a");
-        auto b    = *builder.var("b");
-        auto c42  = *builder.constant(42);
+        auto a    = Try(builder.var("a"));
+        auto b    = Try(builder.var("b"));
+        auto c42  = Try(builder.constant(42));
 
-        auto ac42 = *builder.op<std::plus>(1, c42);
-        builder.op<std::divides>(ac42, b);
+        auto ac42 = Try(builder.op<std::plus>(1, c42));
+        Try(builder.op<std::divides>(ac42, b));
     }
 
-    auto result = std::move(builder)();
-    if (!result)
-    {
-        return pmql::error(result.error());
-    }
-
-    auto expr = *std::move(result);
+    auto expr = Try(std::move(builder)());
 
     // Do variable substitutions, evaluate the expression.
 
@@ -87,14 +81,10 @@ pmql::Result<void> test()
 
     a = 11.2;
     b = 99;
-    auto evaluated = expr(context);
 
-    if (!evaluated)
-    {
-        return pmql::error(evaluated.error());
-    }
+    auto evaluated = Try(expr(context));
 
-    evaluated.value()([] (const auto &value)
+    evaluated([] (const auto &value)
     {
         std::cout << "(a + b) / 42 [with a=11.2, b=99] = " << value << std::endl;
     });

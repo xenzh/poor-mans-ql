@@ -51,7 +51,7 @@ struct Avail
 
 /// Returns an extension pool reference containing all builtin functions.
 /// @return builtin extension functions pool.
-const auto &builtin()
+inline const auto &builtin()
 {
     static const auto all = pool(Avail {});
     return all;

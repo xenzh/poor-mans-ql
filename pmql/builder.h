@@ -114,6 +114,9 @@ private:
     Result<void> visit(op::Id id, std::vector<bool> &visited) const;
 
 public:
+    /// Defines associated expression type.
+    using value_type = Expression<Store, Funs...>;
+
     /// Construct expression builder instance.
     /// @param extensions optional extension function pool.
     explicit Builder(const ext::Pool<Funs...> &extensions = ext::none);
