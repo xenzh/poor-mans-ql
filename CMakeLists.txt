@@ -16,6 +16,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -fcolor-diagnostics -ferro
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
+set(FETCHCONTENT_QUIET FALSE)
+
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
@@ -28,8 +30,14 @@ FetchContent_Declare(
     GIT_TAG        96d547c03d2feab8db64c53c3744a9b4a7c8f2c5
 )
 
+FetchContent_Declare(
+    taocpp-pegtl
+    GIT_REPOSITORY https://github.com/taocpp/PEGTL.git
+    GIT_TAG        2e9440b2c5f57dc4ad762f8304b44f1b7124cbc7
+)
+
 set(EXPECTED_BUILD_TESTS OFF)
-FetchContent_MakeAvailable(googletest tl-expected)
+FetchContent_MakeAvailable(googletest tl-expected taocpp-pegtl)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 

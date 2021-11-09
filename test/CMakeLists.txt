@@ -6,6 +6,7 @@ add_executable(pmql_test ${sources})
 target_link_libraries(
     pmql_test
     PUBLIC pmql
+    PRIVATE taocpp::pegtl
     PRIVATE gmock
     PRIVATE gtest_main)
 

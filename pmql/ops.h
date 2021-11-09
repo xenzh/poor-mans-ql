@@ -6,6 +6,7 @@
 #include <functional>
 #include <string_view>
 #include <variant>
+#include <optional>
 #include <vector>
 #include <unordered_set>
 
