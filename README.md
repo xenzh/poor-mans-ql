@@ -51,8 +51,8 @@ ninja
 // Define storage for calculated values.
 
 template<typename T> struct Name;
-template<> struct Name<int    > { [[maybe_unused]] static constexpr std::string_view value = "int"   ; };
-template<> struct Name<idouble> { [[maybe_unused]] static constexpr std::string_view value = "double"; };
+template<> struct Name<int   > { [[maybe_unused]] static constexpr std::string_view value = "int"   ; };
+template<> struct Name<double> { [[maybe_unused]] static constexpr std::string_view value = "double"; };
 
 using Value = pmql::Variant<Name, int, double>;
 
@@ -67,7 +67,7 @@ pmql::Result<void> test()
         auto b    = Try(builder.var("b"));
         auto c42  = Try(builder.constant(42));
 
-        auto ac42 = Try(builder.op<std::plus>(1, c42));
+        auto ac42 = Try(builder.op<std::plus>(a, c42));
         Try(builder.op<std::divides>(ac42, b));
     }
 
