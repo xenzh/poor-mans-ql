@@ -30,8 +30,8 @@
     PmqlStdOp(std, logical_or   , ||, 2) \
     PmqlStdOp(std, logical_not  , ! , 1) \
     PmqlStdOp(std, bit_and      , & , 2) \
-    PmqlStdOp(std, bit_or       , | , 1) \
-    PmqlStdOp(std, bit_xor      , ^ , 1) \
+    PmqlStdOp(std, bit_or       , | , 2) \
+    PmqlStdOp(std, bit_xor      , ^ , 2) \
     PmqlStdOp(std, bit_not      , ~ , 1) \
 
 
@@ -200,4 +200,4 @@ inline std::ostream &operator<<(std::ostream &os, const pmql::op::List &list)
 } // namespace std
 
 
-#undef PmqlStdOpList
+//#undef PmqlStdOpList

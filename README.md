@@ -26,7 +26,10 @@ This library allows to build and evaluate formula expressions based on std-like 
 
 ### Code TODOs:
 
-- [ ] Try out PEGTL for parsing.
+- [ ] PEG: add custom rule for extensions.
+- [ ] PEG: implement expression parser.
+- [ ] default serialization in pmql lib.
+- [ ] type mismatch unit tests
 - [ ] Proper unit tests.
 - [ ] More detailed benchmarks.
 
@@ -43,6 +46,9 @@ ninja
 
 ## Example
 
+TODO:
+- [ ] log with sample output in comments
+
 ```cpp
 #include <pmql/expression.h>
 #include <pmql/store.h>
@@ -51,8 +57,8 @@ ninja
 // Define storage for calculated values.
 
 template<typename T> struct Name;
-template<> struct Name<int    > { [[maybe_unused]] static constexpr std::string_view value = "int"   ; };
-template<> struct Name<idouble> { [[maybe_unused]] static constexpr std::string_view value = "double"; };
+template<> struct Name<int   > { [[maybe_unused]] static constexpr std::string_view value = "int"   ; };
+template<> struct Name<double> { [[maybe_unused]] static constexpr std::string_view value = "double"; };
 
 using Value = pmql::Variant<Name, int, double>;
 
@@ -67,7 +73,7 @@ pmql::Result<void> test()
         auto b    = Try(builder.var("b"));
         auto c42  = Try(builder.constant(42));
 
-        auto ac42 = Try(builder.op<std::plus>(1, c42));
+        auto ac42 = Try(builder.op<std::plus>(a, c42));
         Try(builder.op<std::divides>(ac42, b));
     }
 
@@ -95,7 +101,7 @@ See [these showcase unit tests](./test/example.t.cpp) for more features.
 
 ## Performance
 
-Exceptional performance is not really a goal of this projects, so the benchmarks below are mostly useful for demonstrating and comparing complexities of different scenarios.
+Exceptional performance is not really a goal of this project, so the benchmarks below are mostly useful for demonstrating and comparing complexities of different scenarios.
 
 ```
 Running ./bench/pmql_bench

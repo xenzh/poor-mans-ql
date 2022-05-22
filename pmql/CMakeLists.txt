@@ -6,3 +6,5 @@ target_link_libraries(
     pmql
     INTERFACE expected
 )
+
+add_subdirectory(parser)
